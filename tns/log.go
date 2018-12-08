@@ -5,7 +5,7 @@ import (
 )
 
 // LogError is a helper used to log an error
-func (m *Manager) LogError(err error, message string, fields ...interface{}) {
+func (m *Daemon) LogError(err error, message string, fields ...interface{}) {
 	// create the base entry
 	entry := m.l.WithFields(log.Fields{
 		"service": m.service,
@@ -26,7 +26,7 @@ func (m *Manager) LogError(err error, message string, fields ...interface{}) {
 }
 
 // LogInfo is a helper used to log an informational message
-func (m *Manager) LogInfo(message ...interface{}) {
+func (m *Daemon) LogInfo(message ...interface{}) {
 	m.l.WithFields(log.Fields{
 		"service": m.service,
 	}).Info(message...)

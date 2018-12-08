@@ -1,11 +1,14 @@
 package tns
 
 import (
+	"github.com/RTradeLtd/kaas"
+	"github.com/RTradeLtd/rtfs"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/RTradeLtd/database/models"
 	ci "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -33,6 +36,21 @@ type ZoneRequest struct {
 	UserName           string `json:"user_name"`
 	ZoneName           string `json:"zone_name"`
 	ZoneManagerKeyName string `json:"zone_manager_key_name"`
+}
+
+// ZoneCreation is used to create a tns zone
+type ZoneCreation struct {
+	Name           string `json:"name"`
+	ManagerKeyName string `json:"manager_key_name"`
+	ZoneKeyName    string `json:"zone_key_name"`
+}
+
+// RecordCreation is used to create a tns record
+type RecordCreation struct {
+	ZoneName      string                 `json:"zone_name"`
+	RecordName    string                 `json:"record_name"`
+	RecordKeyName string                 `json:"record_key_name"`
+	MetaData      map[string]interface{} `json:"meta_data"`
 }
 
 // Zone is a mapping of human readable names, mapped to a public key. In order to retrieve the latest
@@ -68,17 +86,21 @@ type HostOpts struct {
 	Protocol  string `json:"protocol"`
 }
 
-// Manager is used to manipulate a zone on TNS and run a daemon
-type Manager struct {
-	PrivateKey        ci.PrivKey
-	ZonePrivateKey    ci.PrivKey
-	RecordPrivateKeys map[string]ci.PrivKey
-	Zone              *Zone
-	Host              host.Host
-	ZM                *models.ZoneManager
-	RM                *models.RecordManager
-	l                 *log.Logger
-	service           string
+// Daemon is used to manage a local instance of a temporal name server
+// A single Daemon (aka, manager) private key can be reused across multiple zones
+type Daemon struct {
+	ID peer.ID
+	// PrivateKey is also our zone manager private key
+	PrivateKey ci.PrivKey
+	// Zones is a map of zoneName -> latestIPLDHash
+	Zones   map[string]string `json:"zones"`
+	Host    host.Host
+	ZM      *models.ZoneManager
+	RM      *models.RecordManager
+	l       *log.Logger
+	kbc     *kaas.Client
+	ipfs    rtfs.Manager
+	service string
 }
 
 // Client is used to query a TNS daemon
@@ -88,7 +110,7 @@ type Client struct {
 	IPFSAPI    string
 }
 
-// Host is an interface used by a TNS client or daemon
-type Host interface {
+// TNS is an interface used by a TNS client or daemon
+type TNS interface {
 	MakeHost(pk ci.PrivKey, opts *HostOpts) error
 }
