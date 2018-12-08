@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
-	"github.com/RTradeLtd/rtfs"
+	pb "github.com/RTradeLtd/grpc/krab"
+	"github.com/RTradeLtd/kaas"
 	"github.com/RTradeLtd/tns/tns"
+	ci "github.com/libp2p/go-libp2p-crypto"
 
 	"github.com/RTradeLtd/cmd"
 	"github.com/RTradeLtd/config"
@@ -34,15 +37,23 @@ var commands = map[string]cmd.Cmd{
 				Blurb:       "run tns daemon",
 				Description: "runs a tns daemon and zone manager",
 				Action: func(cfg config.TemporalConfig, args map[string]string) {
-					keystore, err := rtfs.NewKeystoreManager(cfg.IPFS.KeystorePath)
+					kb, err := kaas.NewClient(cfg.Endpoints)
 					if err != nil {
 						log.Fatal(err)
 					}
-					zoneManagerPK, err := keystore.GetPrivateKeyByName(cfg.TNS.ZoneManagerKeyName)
+					resp, err := kb.GetPrivateKey(context.Background(), &pb.KeyGet{Name: cfg.TNS.ZoneManagerKeyName})
 					if err != nil {
 						log.Fatal(err)
 					}
-					zonePK, err := keystore.GetPrivateKeyByName(cfg.TNS.ZoneManagerKeyName)
+					zoneManagerPK, err := ci.UnmarshalPrivateKey(resp.PrivateKey)
+					if err != nil {
+						log.Fatal(err)
+					}
+					resp, err = kb.GetPrivateKey(context.Background(), &pb.KeyGet{Name: cfg.TNS.ZoneKeyName})
+					if err != nil {
+						log.Fatal(err)
+					}
+					zonePK, err := ci.UnmarshalPrivateKey(resp.PrivateKey)
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -96,48 +107,6 @@ var commands = map[string]cmd.Cmd{
 					if _, err = client.QueryTNS(pid, "echo", nil); err != nil {
 						log.Fatal(err)
 					}
-				},
-			},
-		},
-	},
-	"queue": {
-		Blurb:         "execute commands for various queues",
-		Description:   "Interact with Temporal's various queue APIs",
-		ChildRequired: true,
-		Children: map[string]cmd.Cmd{
-			"tns": {
-				Blurb:         "run tns queues",
-				Description:   "Allows running the various tns queue services",
-				ChildRequired: true,
-				Children: map[string]cmd.Cmd{
-					"zone-creation": {
-						Blurb:       "Zone creation queue",
-						Description: "Listens to requests to create TNS zones",
-						Action: func(cfg config.TemporalConfig, args map[string]string) {
-							mqConnectionURL := cfg.RabbitMQ.URL
-							qm, err := queue.Initialize(queue.ZoneCreationQueue, mqConnectionURL, false, true)
-							if err != nil {
-								log.Fatal(err)
-							}
-							if err = qm.ConsumeMessage("", args["dbPass"], args["dbURL"], args["dbUser"], &cfg); err != nil {
-								log.Fatal(err)
-							}
-						},
-					},
-					"record-creation": {
-						Blurb:       "record creation queue",
-						Description: "Listens to requests to create TNS records",
-						Action: func(cfg config.TemporalConfig, args map[string]string) {
-							mqConnectionURL := cfg.RabbitMQ.URL
-							qm, err := queue.Initialize(queue.RecordCreationQueue, mqConnectionURL, false, true)
-							if err != nil {
-								log.Fatal(err)
-							}
-							if err = qm.ConsumeMessage("", args["dbPass"], args["dbURL"], args["dbUser"], &cfg); err != nil {
-								log.Fatal(err)
-							}
-						},
-					},
 				},
 			},
 		},
