@@ -7,11 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/RTradeLtd/rtfs"
+	"github.com/RTradeLtd/tns/tns"
 
-	"github.com/RTradeLtd/Temporal/tns"
-
-	"github.com/RTradeLtd/Temporal/api"
-	"github.com/RTradeLtd/Temporal/queue"
 	"github.com/RTradeLtd/cmd"
 	"github.com/RTradeLtd/config"
 	"github.com/RTradeLtd/database"
@@ -103,154 +100,11 @@ var commands = map[string]cmd.Cmd{
 			},
 		},
 	},
-	"api": {
-		Blurb:       "start Temporal api server",
-		Description: "Start the API service used to interact with Temporal. Run with DEBUG=true to enable debug messages.",
-		Action: func(cfg config.TemporalConfig, args map[string]string) {
-			service, err := api.Initialize(&cfg, os.Getenv("DEBUG") == "true")
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer service.Close()
-
-			port := os.Getenv("API_PORT")
-			if port == "" {
-				port = "6767"
-			}
-			addr := fmt.Sprintf("%s:%s", args["listenAddress"], port)
-			if args["certFilePath"] == "" || args["keyFilePath"] == "" {
-				fmt.Println("TLS config incomplete - starting API service without TLS...")
-				err = service.ListenAndServe(addr, nil)
-			} else {
-				fmt.Println("Starting API service with TLS...")
-				err = service.ListenAndServe(addr, &api.TLSConfig{
-					CertFile: args["certFilePath"],
-					KeyFile:  args["keyFilePath"],
-				})
-			}
-			if err != nil {
-				fmt.Printf("API service execution failed: %s\n", err.Error())
-				fmt.Println("Refer to the logs for more details")
-			}
-		},
-	},
 	"queue": {
 		Blurb:         "execute commands for various queues",
 		Description:   "Interact with Temporal's various queue APIs",
 		ChildRequired: true,
 		Children: map[string]cmd.Cmd{
-			"ipfs": {
-				Blurb:         "IPFS queue sub commands",
-				Description:   "Used to launch the various queues that interact with IPFS",
-				ChildRequired: true,
-				Children: map[string]cmd.Cmd{
-					"ipns-entry": {
-						Blurb:       "IPNS entry creation queue",
-						Description: "Listens to requests to create IPNS records",
-						Action: func(cfg config.TemporalConfig, args map[string]string) {
-							mqConnectionURL := cfg.RabbitMQ.URL
-							qm, err := queue.Initialize(queue.IpnsEntryQueue, mqConnectionURL, false, true)
-							if err != nil {
-								log.Fatal(err)
-							}
-							err = qm.ConsumeMessage("", args["dbPass"], args["dbURL"], args["dbUser"], &cfg)
-							if err != nil {
-								log.Fatal(err)
-							}
-						},
-					},
-					"pin": {
-						Blurb:       "Pin addition queue",
-						Description: "Listens to pin requests",
-						Action: func(cfg config.TemporalConfig, args map[string]string) {
-							mqConnectionURL := cfg.RabbitMQ.URL
-							qm, err := queue.Initialize(queue.IpfsPinQueue, mqConnectionURL, false, true)
-							if err != nil {
-								log.Fatal(err)
-							}
-							err = qm.ConsumeMessage("", args["dbPass"], args["dbURL"], args["dbUser"], &cfg)
-							if err != nil {
-								log.Fatal(err)
-							}
-						},
-					},
-					"file": {
-						Blurb:       "File upload queue",
-						Description: "Listens to file upload requests. Only applies to advanced uploads",
-						Action: func(cfg config.TemporalConfig, args map[string]string) {
-							mqConnectionURL := cfg.RabbitMQ.URL
-							qm, err := queue.Initialize(queue.IpfsFileQueue, mqConnectionURL, false, true)
-							if err != nil {
-								log.Fatal(err)
-							}
-							err = qm.ConsumeMessage("", args["dbPass"], args["dbURL"], args["dbUser"], &cfg)
-							if err != nil {
-								log.Fatal(err)
-							}
-						},
-					},
-					"key-creation": {
-						Blurb:       "Key creation queue",
-						Description: fmt.Sprintf("Listen to key creation requests.\nMessages to this queue are broadcasted to all nodes"),
-						Action: func(cfg config.TemporalConfig, args map[string]string) {
-							mqConnectionURL := cfg.RabbitMQ.URL
-							qm, err := queue.Initialize(queue.IpfsKeyCreationQueue, mqConnectionURL, false, true)
-							if err != nil {
-								log.Fatal(err)
-							}
-							err = qm.ConsumeMessage("", args["dbPass"], args["dbURL"], args["dbUser"], &cfg)
-							if err != nil {
-								log.Fatal(err)
-							}
-						},
-					},
-					"cluster": {
-						Blurb:       "Cluster pin queue",
-						Description: "Listens to requests to pin content to the cluster",
-						Action: func(cfg config.TemporalConfig, args map[string]string) {
-							mqConnectionURL := cfg.RabbitMQ.URL
-							qm, err := queue.Initialize(queue.IpfsClusterPinQueue, mqConnectionURL, false, true)
-							if err != nil {
-								log.Fatal(err)
-							}
-							err = qm.ConsumeMessage("", args["dbPass"], args["dbURL"], args["dbUser"], &cfg)
-							if err != nil {
-								log.Fatal(err)
-							}
-						},
-					},
-				},
-			},
-			"dfa": {
-				Blurb:       "Database file add queue",
-				Description: "Listens to file uploads requests. Only applies to simple upload route",
-				Action: func(cfg config.TemporalConfig, args map[string]string) {
-					mqConnectionURL := cfg.RabbitMQ.URL
-					qm, err := queue.Initialize(queue.DatabaseFileAddQueue, mqConnectionURL, false, true)
-					if err != nil {
-						log.Fatal(err)
-					}
-					err = qm.ConsumeMessage("", args["dbPass"], args["dbURL"], args["dbUser"], &cfg)
-					if err != nil {
-						log.Fatal(err)
-					}
-				},
-			},
-			"email-send": {
-				Blurb:       "Email send queue",
-				Description: "Listens to requests to send emails",
-				Action: func(cfg config.TemporalConfig, args map[string]string) {
-					mqConnectionURL := cfg.RabbitMQ.URL
-					qm, err := queue.Initialize(queue.EmailSendQueue, mqConnectionURL, false, true)
-					if err != nil {
-						log.Fatal(err)
-					}
-					err = qm.ConsumeMessage("", args["dbPass"], args["dbURL"], args["dbUser"], &cfg)
-					if err != nil {
-						log.Fatal(err)
-					}
-				},
-			},
 			"tns": {
 				Blurb:         "run tns queues",
 				Description:   "Allows running the various tns queue services",

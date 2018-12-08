@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RTradeLtd/Temporal/tns"
 	"github.com/RTradeLtd/config"
 	"github.com/RTradeLtd/database"
 	"github.com/RTradeLtd/rtfs"
+	"github.com/RTradeLtd/tns/tns"
 )
 
 // Issue with libp2p and being unable to run multiple tests one after another

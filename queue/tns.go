@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/RTradeLtd/rtfs"
+	"github.com/RTradeLtd/tns/tns"
 
-	"github.com/RTradeLtd/Temporal/tns"
 	"github.com/RTradeLtd/config"
 	"github.com/RTradeLtd/database/models"
 	"github.com/jinzhu/gorm"
