@@ -21,8 +21,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// ManagerOpts defines options for controlling our TNS Manager daemon
-type ManagerOpts struct {
+// DaemonOpts defines options for controlling our TNS Manager daemon
+type DaemonOpts struct {
 	ManagerPK ci.PrivKey `json:"manager_pk"`
 	LogFile   string     `json:"log_file"`
 	DB        *gorm.DB   `json:"db"`
@@ -31,7 +31,7 @@ type ManagerOpts struct {
 }
 
 // NewDaemon is used to create a new tns manager daemon
-func NewDaemon(opts *ManagerOpts, db *gorm.DB, kbc *kaas.Client, ipfs rtfs.Manager) (*Daemon, error) {
+func NewDaemon(opts *DaemonOpts, db *gorm.DB, kbc *kaas.Client, ipfs rtfs.Manager) (*Daemon, error) {
 	var (
 		logger = log.New()
 		err    error
