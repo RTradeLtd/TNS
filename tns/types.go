@@ -90,17 +90,16 @@ type HostOpts struct {
 // A single Daemon (aka, manager) private key can be reused across multiple zones
 type Daemon struct {
 	ID peer.ID
-	// PrivateKey is also our zone manager private key
-	PrivateKey ci.PrivKey
-	// Zones is a map of zoneName -> latestIPLDHash
-	Zones   map[string]string `json:"zones"`
-	Host    host.Host
-	ZM      *models.ZoneManager
-	RM      *models.RecordManager
-	l       *log.Logger
-	kbc     *kaas.Client
-	ipfs    rtfs.Manager
-	service string
+	// pk is also our zone manager private key
+	pk ci.PrivKey
+	// zones is a map of zoneName -> latestIPLDHash
+	zones map[string]string `json:"zones"`
+	host  host.Host
+	zm    *models.ZoneManager
+	rm    *models.RecordManager
+	l     *log.Logger
+	kbc   *kaas.Client
+	ipfs  rtfs.Manager
 }
 
 // Client is used to query a TNS daemon

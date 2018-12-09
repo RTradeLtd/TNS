@@ -8,7 +8,7 @@ import (
 func (m *Daemon) LogError(err error, message string, fields ...interface{}) {
 	// create the base entry
 	entry := m.l.WithFields(log.Fields{
-		"service": m.service,
+		"service": "daemon",
 	})
 	// add additional fields
 	if fields != nil {
@@ -28,6 +28,6 @@ func (m *Daemon) LogError(err error, message string, fields ...interface{}) {
 // LogInfo is a helper used to log an informational message
 func (m *Daemon) LogInfo(message ...interface{}) {
 	m.l.WithFields(log.Fields{
-		"service": m.service,
+		"service": "daemon",
 	}).Info(message...)
 }

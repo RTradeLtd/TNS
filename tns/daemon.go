@@ -42,13 +42,13 @@ func NewDaemon(opts *DaemonOpts) (*Daemon, error) {
 		return nil, err
 	}
 	daemon := Daemon{
-		ID:         managerPKID,
-		PrivateKey: opts.ManagerPK,
-		kbc:        opts.KBC,
-		ipfs:       opts.IPFS,
-		ZM:         models.NewZoneManager(opts.DB),
-		RM:         models.NewRecordManager(opts.DB),
-		Zones:      make(map[string]string),
+		ID:    managerPKID,
+		pk:    opts.ManagerPK,
+		kbc:   opts.KBC,
+		ipfs:  opts.IPFS,
+		zm:    models.NewZoneManager(opts.DB),
+		rm:    models.NewRecordManager(opts.DB),
+		zones: make(map[string]string),
 	}
 	// create our libp2p host
 	if err := daemon.MakeHost(opts.ManagerPK, nil); err != nil {
@@ -70,43 +70,47 @@ func NewDaemon(opts *DaemonOpts) (*Daemon, error) {
 func (d *Daemon) Run(ctx context.Context) error {
 	d.LogInfo("generating echo stream")
 	// our echo stream is a basic test used to determine whether or not a tns manager daemon is functioning properly
-	d.Host.SetStreamHandler(
+	d.host.SetStreamHandler(
 		CommandEcho, func(s net.Stream) {
 			d.LogInfo("new stream detected")
 			if err := d.HandleQuery(s, "echo"); err != nil {
-				log.Warn(err.Error())
+				d.l.Warn(err.Error())
 				s.Reset()
 			} else {
+				d.l.Info("successfully handled echo stream")
 				s.Close()
 			}
 		})
 	d.LogInfo("generating record request stream")
 	// our record request stream allows clients to request a record from the tns manager daemon
-	d.Host.SetStreamHandler(
+	d.host.SetStreamHandler(
 		CommandRecordRequest, func(s net.Stream) {
 			d.LogInfo("new stream detected")
 			if err := d.HandleQuery(s, "record-request"); err != nil {
-				log.Warn(err.Error())
+				d.l.Warn(err.Error())
 				s.Reset()
 			} else {
+				d.l.Info("successfully handled record request stream")
 				s.Close()
 			}
 		})
 	d.LogInfo("generating zone request stream")
 	// our zone request stream allows clients to request a zone from the tns manager daemon
-	d.Host.SetStreamHandler(
+	d.host.SetStreamHandler(
 		CommandZoneRequest, func(s net.Stream) {
 			d.LogInfo("new stream detected")
 			if err := d.HandleQuery(s, "zone-request"); err != nil {
-				log.Warn(err.Error())
+				d.l.Warn(err.Error())
 				s.Reset()
 			} else {
+				d.l.Info("successfully handled zone request stream")
 				s.Close()
 			}
 		})
 	for {
 		select {
 		case <-ctx.Done():
+			d.l.Info("terminating daemon")
 			return d.Close()
 		}
 	}
@@ -143,12 +147,12 @@ func (d *Daemon) HandleQuery(s net.Stream, cmd string) error {
 			return err
 		}
 		// check to see if we are managing the zone
-		if d.Zones[req.ZoneName] == "" {
+		if d.zones[req.ZoneName] == "" {
 			_, err = s.Write([]byte("daemon is not a manager for this zone"))
 			return err
 		}
 		// send the latest ipld hash for this zone to the client, allowing them to extract information from ipfs
-		_, err = s.Write([]byte(d.Zones[req.ZoneName]))
+		_, err = s.Write([]byte(d.zones[req.ZoneName]))
 		return err
 	default:
 		// basic handler for a generic stream
@@ -163,21 +167,21 @@ func (d *Daemon) MakeHost(pk ci.PrivKey, opts *HostOpts) error {
 	if err != nil {
 		return err
 	}
-	d.Host = host
+	d.host = host
 	return nil
 }
 
 // HostMultiAddress is used to get a formatted libp2p host multi address
 func (d *Daemon) HostMultiAddress() (ma.Multiaddr, error) {
-	return ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", d.Host.ID().Pretty()))
+	return ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", d.host.ID().Pretty()))
 }
 
 // ReachableAddress is used to get a reachable address for this host
 func (d *Daemon) ReachableAddress(addressIndex int) (string, error) {
-	if addressIndex > len(d.Host.Addrs()) {
+	if addressIndex > len(d.host.Addrs()) {
 		return "", errors.New("invalid index")
 	}
-	ipAddr := d.Host.Addrs()[addressIndex]
+	ipAddr := d.host.Addrs()[addressIndex]
 	multiAddr, err := d.HostMultiAddress()
 	if err != nil {
 		return "", err
@@ -223,11 +227,16 @@ func (d *Daemon) CreateZone(req *ZoneCreation) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	d.Zones[req.Name] = hash
+	d.zones[req.Name] = hash
 	return hash, nil
 }
 
 // Close is used to terminate our daemon
 func (d *Daemon) Close() error {
-	return d.Host.Close()
+	return d.host.Close()
+}
+
+// Zones is used to retrieve all the zones being managed by this daemon
+func (d *Daemon) Zones() map[string]string {
+	return d.zones
 }
