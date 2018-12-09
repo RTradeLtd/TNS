@@ -26,12 +26,12 @@ type DaemonOpts struct {
 	ManagerPK ci.PrivKey `json:"manager_pk"`
 	LogFile   string     `json:"log_file"`
 	DB        *gorm.DB   `json:"db"`
-	ipfs      rtfs.Manager
-	kbc       *kaas.Client
+	IPFS      rtfs.Manager
+	KBC       *kaas.Client
 }
 
 // NewDaemon is used to create a new tns manager daemon
-func NewDaemon(opts *DaemonOpts, db *gorm.DB, kbc *kaas.Client, ipfs rtfs.Manager) (*Daemon, error) {
+func NewDaemon(opts *DaemonOpts) (*Daemon, error) {
 	var (
 		logger = log.New()
 		err    error
@@ -44,10 +44,10 @@ func NewDaemon(opts *DaemonOpts, db *gorm.DB, kbc *kaas.Client, ipfs rtfs.Manage
 	daemon := Daemon{
 		ID:         managerPKID,
 		PrivateKey: opts.ManagerPK,
-		kbc:        kbc,
-		ipfs:       ipfs,
-		ZM:         models.NewZoneManager(db),
-		RM:         models.NewRecordManager(db),
+		kbc:        opts.KBC,
+		ipfs:       opts.IPFS,
+		ZM:         models.NewZoneManager(opts.DB),
+		RM:         models.NewRecordManager(opts.DB),
 		Zones:      make(map[string]string),
 	}
 	// create our libp2p host
@@ -66,8 +66,8 @@ func NewDaemon(opts *DaemonOpts, db *gorm.DB, kbc *kaas.Client, ipfs rtfs.Manage
 	return &daemon, nil
 }
 
-// RunTNSDaemon is used to run our TNS daemon, and setup the available stream handlers
-func (d *Daemon) RunTNSDaemon() {
+// Run is used to run our TNS daemon, and setup the available stream handlers
+func (d *Daemon) Run(ctx context.Context) error {
 	d.LogInfo("generating echo stream")
 	// our echo stream is a basic test used to determine whether or not a tns manager daemon is functioning properly
 	d.Host.SetStreamHandler(
@@ -104,6 +104,12 @@ func (d *Daemon) RunTNSDaemon() {
 				s.Close()
 			}
 		})
+	for {
+		select {
+		case <-ctx.Done():
+			return d.Close()
+		}
+	}
 }
 
 // HandleQuery is used to handle a query sent to tns
@@ -219,4 +225,9 @@ func (d *Daemon) CreateZone(req *ZoneCreation) (string, error) {
 	}
 	d.Zones[req.Name] = hash
 	return hash, nil
+}
+
+// Close is used to terminate our daemon
+func (d *Daemon) Close() error {
+	return d.Host.Close()
 }
