@@ -192,6 +192,9 @@ func (d *Daemon) ReachableAddress(addressIndex int) (string, error) {
 // CreateZone is used to create a zone, storing it on ipfs
 // Uses the embedded private key as the zone manager private key
 func (d *Daemon) CreateZone(req *ZoneCreation) (string, error) {
+	if d.zones[req.Name] != "" {
+		return "", errors.New("zone with name is already managed by this daemon")
+	}
 	// create zone private key
 	zonePK, zonePubKey, err := ci.GenerateKeyPair(ci.Ed25519, 256)
 	if err != nil {
