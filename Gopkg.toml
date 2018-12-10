@@ -35,7 +35,7 @@
 
 [[constraint]]
   name = "github.com/RTradeLtd/database"
-  version = "1.1.0"
+  branch = "tns"
 
 [[constraint]]
   name = "github.com/RTradeLtd/rtfs"

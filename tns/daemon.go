@@ -230,6 +230,9 @@ func (d *Daemon) CreateZone(req *ZoneCreation) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if _, err := d.zm.NewZone(req.Name, d.ID.Pretty(), zoneID.Pretty(), hash); err != nil {
+		d.LogError(err, "failed to add zone to database")
+	}
 	d.zones[req.Name] = hash
 	return hash, nil
 }
