@@ -2,20 +2,21 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
-	pb "github.com/RTradeLtd/grpc/krab"
-	"github.com/RTradeLtd/kaas"
-	"github.com/RTradeLtd/tns/tns"
 	ci "github.com/libp2p/go-libp2p-crypto"
 
 	"github.com/RTradeLtd/cmd"
 	"github.com/RTradeLtd/config"
 	"github.com/RTradeLtd/database"
 	"github.com/RTradeLtd/database/models"
+	pb "github.com/RTradeLtd/grpc/krab"
+	"github.com/RTradeLtd/kaas"
+	"github.com/RTradeLtd/rtfs"
+	"github.com/RTradeLtd/tns/tns"
 )
 
 var (
@@ -41,47 +42,49 @@ var commands = map[string]cmd.Cmd{
 					if err != nil {
 						log.Fatal(err)
 					}
-					resp, err := kb.GetPrivateKey(context.Background(), &pb.KeyGet{Name: cfg.TNS.ZoneManagerKeyName})
+					resp, err := kb.GetPrivateKey(context.Background(), &pb.KeyGet{Name: args["managerKeyName"]})
 					if err != nil {
 						log.Fatal(err)
 					}
-					zoneManagerPK, err := ci.UnmarshalPrivateKey(resp.PrivateKey)
+					pk, err := ci.UnmarshalPrivateKey(resp.PrivateKey)
 					if err != nil {
 						log.Fatal(err)
 					}
-					resp, err = kb.GetPrivateKey(context.Background(), &pb.KeyGet{Name: cfg.TNS.ZoneKeyName})
+					db, err := database.OpenDBConnection(database.DBOptions{
+						User:     cfg.Database.Username,
+						Password: cfg.Database.Password,
+						Address:  cfg.Database.URL,
+						Port:     cfg.Database.Port,
+					})
 					if err != nil {
 						log.Fatal(err)
 					}
-					zonePK, err := ci.UnmarshalPrivateKey(resp.PrivateKey)
+					ipfs, err := rtfs.NewManager(
+						cfg.IPFS.APIConnection.Host+":"+cfg.IPFS.APIConnection.Port,
+						nil, time.Minute*10,
+					)
 					if err != nil {
 						log.Fatal(err)
 					}
-					managerOpts := tns.ManagerOpts{
-						ManagerPK: zoneManagerPK,
-						ZonePK:    zonePK,
-						ZoneName:  cfg.TNS.ZoneName,
-					}
-					dbm, err := database.Initialize(&cfg, database.Options{})
+					daemon, err := tns.NewDaemon(&tns.DaemonOpts{
+						ManagerPK: pk,
+						LogFile:   "/tmp/daemon.log",
+						DB:        db,
+						IPFS:      ipfs,
+						KBC:       kb,
+					})
 					if err != nil {
 						log.Fatal(err)
 					}
-					manager, err := tns.GenerateTNSManager(&managerOpts, dbm.DB)
-					if err != nil {
+					ctx, cancel := context.WithCancel(context.Background())
+					// temporary, lazy to do anythign else atm
+					go func() {
+						time.Sleep(time.Minute * 1)
+						cancel()
+					}()
+					if err := daemon.Run(ctx); err != nil {
 						log.Fatal(err)
 					}
-					if err = manager.MakeHost(manager.PrivateKey, nil); err != nil {
-						log.Fatal(err)
-					}
-					defer manager.Host.Close()
-					manager.RunTNSDaemon()
-					lim := len(manager.Host.Addrs())
-					count := 0
-					for count < lim {
-						fmt.Println(manager.ReachableAddress(count))
-						count++
-					}
-					select {}
 				},
 			},
 			"client": {
@@ -209,6 +212,10 @@ func main() {
 		os.Exit(0)
 	}
 
+	managerKeyName := os.Getenv("MANAGER_KEY_NAME")
+	if managerKeyName == "" {
+		log.Fatal("MANAGER_KEY_NAME is not set")
+	}
 	// load config
 	configDag := os.Getenv("CONFIG_DAG")
 	if configDag == "" {
@@ -220,35 +227,8 @@ func main() {
 	}
 	// load arguments
 	flags := map[string]string{
-		"configDag":     configDag,
-		"certFilePath":  tCfg.API.Connection.Certificates.CertPath,
-		"keyFilePath":   tCfg.API.Connection.Certificates.KeyPath,
-		"listenAddress": tCfg.API.Connection.ListenAddress,
-
-		"dbPass": tCfg.Database.Password,
-		"dbURL":  tCfg.Database.URL,
-		"dbUser": tCfg.Database.Username,
+		"managerKeyName": managerKeyName,
 	}
-	var (
-		peerAddr string
-		isTns    bool
-	)
-	// check for tns client operation and load peer addr
-	for _, v := range os.Args {
-		if v == "tns" {
-			isTns = true
-		}
-		if isTns && v == "client" {
-			peerAddr = os.Getenv("PEER_ADDR")
-			if peerAddr == "" {
-				log.Fatal("PEER_ADDR env var is empty")
-			}
-		}
-	}
-	if isTns && peerAddr != "" {
-		flags["peerAddr"] = peerAddr
-	}
-	fmt.Println(tCfg.APIKeys.ChainRider)
 	// execute
 	os.Exit(temporal.Run(*tCfg, flags, os.Args[1:]))
 }

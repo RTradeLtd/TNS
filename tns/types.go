@@ -93,7 +93,7 @@ type Daemon struct {
 	// pk is also our zone manager private key
 	pk ci.PrivKey
 	// zones is a map of zoneName -> latestIPLDHash
-	zones map[string]string `json:"zones"`
+	zones map[string]string
 	host  host.Host
 	zm    *models.ZoneManager
 	rm    *models.RecordManager
