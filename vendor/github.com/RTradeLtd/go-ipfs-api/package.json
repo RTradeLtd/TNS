@@ -9,21 +9,21 @@
   "gxDependencies": [
     {
       "author": "whyrusleeping",
-      "hash": "QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB",
+      "hash": "QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h",
       "name": "go-libp2p-peer",
-      "version": "2.4.0"
+      "version": "3.1.2"
     },
     {
       "author": "multiformats",
-      "hash": "QmT4U94DnD8FRfqr21obWY32HLM5VExccPKMjQHofeYqr9",
+      "hash": "QmTZBfrPJmjWsCvHEtX5FE6KimVJhsJg5sBbqEFYf4UZtL",
       "name": "go-multiaddr",
-      "version": "1.3.5"
+      "version": "1.4.1"
     },
     {
       "author": "multiformats",
-      "hash": "Qmaabb1tJZ2CX5cp6MuuiGgns71NYoxdgQP6Xdid1dVceC",
+      "hash": "Qmc85NSvmSG4Frn9Vb2cBc1rMyULH6D3TNVEfCzSKoUpip",
       "name": "go-multiaddr-net",
-      "version": "1.6.5"
+      "version": "1.7.2"
     },
     {
       "author": "mitchellh",
@@ -33,9 +33,9 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmPdKqUcHGFdeSpvjVoaTRPPstGif9GBZb5Q56RVw9o69A",
+      "hash": "QmNohiVssaPw3KVLZik59DBVGTSm2dGvYT9eoXt5DQ36Yz",
       "name": "go-ipfs-util",
-      "version": "1.2.8"
+      "version": "1.2.9"
     },
     {
       "author": "whyrusleeping",
@@ -45,15 +45,15 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmeaTjsfPf6vQ3WU2BUdjakgvKUHpuv3Fjxvb75N5iksMx",
+      "hash": "QmSwVwKUWzdf3ppM3FbBbpuqHUNtUFJPQQdfvKmgZoz2gR",
       "name": "go-libp2p-metrics",
-      "version": "2.1.7"
+      "version": "2.1.14"
     },
     {
       "author": "magik6k",
-      "hash": "QmZMWMvWMVKCbHetJ4RgndbuEF1io2UpUxwQwtNjtYPzSC",
+      "hash": "QmQmhotPUzVrMEWNK3x1R5jQ5ZHWyL7tVUrmRPjrBrvyCb",
       "name": "go-ipfs-files",
-      "version": "1.0.1"
+      "version": "2.0.6"
     }
   ],
   "gxVersion": "0.7.0",
@@ -61,6 +61,6 @@
   "license": "MIT",
   "name": "go-ipfs-api",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "1.4.2"
+  "version": "1.4.8"
 }
 

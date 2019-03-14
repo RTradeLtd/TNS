@@ -25,49 +25,61 @@
 #   unused-packages = true
 
 
+#############
+#RTRADE CORE#
+#############
+
 [[constraint]]
   name = "github.com/RTradeLtd/cmd"
-  version = "1.0.4"
+  version = "~v2.0.0"
 
 [[constraint]]
   name = "github.com/RTradeLtd/config"
-  version = "1.0.15"
+  version = "~v2.0.0"
 
 [[constraint]]
   name = "github.com/RTradeLtd/database"
   branch = "tns"
 
 [[constraint]]
-  name = "github.com/RTradeLtd/rtfs"
-  version = "0.3.5"
+  name = "github.com/RTradeLtd/grpc"
+  versoin = "~v2.0.0"
 
 [[constraint]]
-  name = "github.com/jinzhu/gorm"
-  version = "1.9.2"
+  name = "github.com/RTradeLtd/rtfs"
+  version = "~v2.0.0"
+
+[[constraint]]
+  name = "github.com/RTradeLtd/gorm"
+  branch = "versioned"
+
+##############
+#THIRD  PARTY#
+##############
 
 [[constraint]]
   name = "github.com/libp2p/go-libp2p"
-  version = "6.0.23"
+  version = "~v0.0.1"
 
 [[constraint]]
   name = "github.com/libp2p/go-libp2p-crypto"
-  version = "2.0.1"
+  version = "~v0.0.1"
 
 [[constraint]]
   name = "github.com/libp2p/go-libp2p-host"
-  version = "3.0.15"
+  version = "~v0.0.1"
 
 [[constraint]]
   name = "github.com/libp2p/go-libp2p-net"
-  version = "3.0.15"
+  version = "~v0.0.1"
 
 [[constraint]]
   name = "github.com/libp2p/go-libp2p-peer"
-  version = "2.4.0"
+  version = "~v0.0.1"
 
 [[constraint]]
   name = "github.com/libp2p/go-libp2p-peerstore"
-  version = "2.0.6"
+  version = "~v0.0.1"
 
 [[constraint]]
   branch = "master"
@@ -80,6 +92,10 @@
 [[constraint]]
   branch = "master"
   name = "github.com/streadway/amqp"
+
+[[override]]
+  name = "github.com/dgraph-io/badger"
+  branch = "master"
 
 [prune]
   go-tests = true

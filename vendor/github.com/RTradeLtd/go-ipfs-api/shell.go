@@ -33,7 +33,7 @@ const (
 
 type Shell struct {
 	url     string
-	httpcli *gohttp.Client
+	httpcli gohttp.Client
 }
 
 func NewLocalShell() *Shell {
@@ -72,6 +72,25 @@ func NewShell(url string) *Shell {
 	return NewShellWithClient(url, c)
 }
 
+// NewDirectShell creates a new shell that directly uses the provided URL,
+// instead of attempting to parse it into a multiaddr.
+//
+// For Nexus-hosted IPFS nodes, for example, use:
+//
+//     shell := NewDirectShell(fmt.Sprintf("nexus.temporal.cloud/network/%s", networkName))
+//
+func NewDirectShell(url string) *Shell {
+	return &Shell{
+		url: url,
+		httpcli: gohttp.Client{
+			Transport: &gohttp.Transport{
+				Proxy:             gohttp.ProxyFromEnvironment,
+				DisableKeepAlives: true,
+			},
+		},
+	}
+}
+
 func NewShellWithClient(url string, c *gohttp.Client) *Shell {
 	if a, err := ma.NewMultiaddr(url); err == nil {
 		_, host, err := manet.DialArgs(a)
@@ -79,10 +98,29 @@ func NewShellWithClient(url string, c *gohttp.Client) *Shell {
 			url = host
 		}
 	}
+	var sh Shell
+	sh.url = url
+	sh.httpcli = *c
+	// We don't support redirects.
+	sh.httpcli.CheckRedirect = func(_ *gohttp.Request, _ []*gohttp.Request) error {
+		return fmt.Errorf("unexpected redirect")
+	}
+	return &sh
+}
 
+// WithAuthorization returns a Shell that sets the provided token to be used as
+// an Authorization header in API requests. For example:
+//
+//    resp, err := NewDirectShell(addr).
+//        WithAuthorization(token).
+//        Cat(hash)
+//
+func (s *Shell) WithAuthorization(token string) *Shell {
 	return &Shell{
-		url:     url,
-		httpcli: c,
+		url: s.url,
+		httpcli: gohttp.Client{
+			Transport: newAuthenticatedTransport(s.httpcli.Transport, token),
+		},
 	}
 }
 
@@ -123,18 +161,6 @@ func (s *Shell) ID(peer ...string) (*IdOutput, error) {
 }
 
 // Cat the content at the given path. Callers need to drain and close the returned reader after usage.
-func (s *Shell) CatGet(path string) (io.ReadCloser, error) {
-	resp, err := NewRequest(context.Background(), s.url, "cat", path).SendGET(s.httpcli)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Error != nil {
-		return nil, resp.Error
-	}
-	return resp.Output, nil
-}
-
-// Cat the content at the given path. Callers need to drain and close the returned reader after usage.
 func (s *Shell) Cat(path string) (io.ReadCloser, error) {
 	resp, err := s.Request("cat", path).Send(context.Background())
 	if err != nil {
@@ -145,101 +171,6 @@ func (s *Shell) Cat(path string) (io.ReadCloser, error) {
 	}
 
 	return resp.Output, nil
-}
-
-type object struct {
-	Hash string
-}
-
-// Add a file to ipfs from the given reader, returns the hash of the added file
-func (s *Shell) Add(r io.Reader) (string, error) {
-	return s.AddWithOpts(r, true, false)
-}
-
-// AddNoPin a file to ipfs from the given reader, returns the hash of the added file without pinning the file
-func (s *Shell) AddNoPin(r io.Reader) (string, error) {
-	return s.AddWithOpts(r, false, false)
-}
-
-func (s *Shell) AddWithOpts(r io.Reader, pin bool, rawLeaves bool) (string, error) {
-	var rc io.ReadCloser
-	if rclose, ok := r.(io.ReadCloser); ok {
-		rc = rclose
-	} else {
-		rc = ioutil.NopCloser(r)
-	}
-
-	// handler expects an array of files
-	fr := files.NewReaderFile("", "", rc, nil)
-	slf := files.NewSliceFile("", "", []files.File{fr})
-	fileReader := files.NewMultiFileReader(slf, true)
-
-	var out object
-	return out.Hash, s.Request("add").
-		Option("progress", false).
-		Option("pin", pin).
-		Option("raw-leaves", rawLeaves).
-		Body(fileReader).
-		Exec(context.Background(), &out)
-}
-
-func (s *Shell) AddLink(target string) (string, error) {
-	link := files.NewLinkFile("", "", target, nil)
-	slf := files.NewSliceFile("", "", []files.File{link})
-	reader := files.NewMultiFileReader(slf, true)
-
-	var out object
-	return out.Hash, s.Request("add").Body(reader).Exec(context.Background(), &out)
-}
-
-// AddDir adds a directory recursively with all of the files under it
-func (s *Shell) AddDir(dir string) (string, error) {
-	stat, err := os.Lstat(dir)
-	if err != nil {
-		return "", err
-	}
-
-	sf, err := files.NewSerialFile(path.Base(dir), dir, false, stat)
-	if err != nil {
-		return "", err
-	}
-	slf := files.NewSliceFile("", dir, []files.File{sf})
-	reader := files.NewMultiFileReader(slf, true)
-
-	resp, err := s.Request("add").
-		Option("recursive", true).
-		Body(reader).
-		Send(context.Background())
-
-	if err != nil {
-		return "", nil
-	}
-
-	defer resp.Close()
-
-	if resp.Error != nil {
-		return "", resp.Error
-	}
-
-	dec := json.NewDecoder(resp.Output)
-	var final string
-	for {
-		var out object
-		err = dec.Decode(&out)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return "", err
-		}
-		final = out.Hash
-	}
-
-	if final == "" {
-		return "", errors.New("no results received")
-	}
-
-	return final, nil
 }
 
 const (
@@ -280,6 +211,15 @@ func (s *Shell) Pin(path string) error {
 	return s.Request("pin/add", path).
 		Option("recursive", true).
 		Exec(context.Background(), nil)
+}
+
+// PinUpdate is used to update one pin path to another followed by unpinning
+func (s *Shell) PinUpdate(fromPath, toPath string) (map[string][]string, error) {
+	var out map[string][]string
+	if err := s.Request("pin/update", fromPath, toPath).Exec(context.Background(), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // Unpin the given path
@@ -326,21 +266,23 @@ func (s *Shell) FindPeer(peer string) (*PeerInfo, error) {
 	return &peers.Responses[0], nil
 }
 
-func (s *Shell) Refs(hash string, recursive bool) (<-chan string, error) {
+func (s *Shell) Refs(hash string, recursive, unique bool) (<-chan string, error) {
 	resp, err := s.Request("refs", hash).
 		Option("recursive", recursive).
+		Option("unique", unique).
 		Send(context.Background())
 	if err != nil {
 		return nil, err
 	}
 
-	defer resp.Close()
 	if resp.Error != nil {
+		resp.Close()
 		return nil, resp.Error
 	}
 
 	out := make(chan string)
 	go func() {
+		defer resp.Close()
 		var ref struct {
 			Ref string
 		}
@@ -385,8 +327,8 @@ func (s *Shell) PatchData(root string, set bool, data interface{}) (string, erro
 		cmd = "set-data"
 	}
 
-	fr := files.NewReaderFile("", "", ioutil.NopCloser(read), nil)
-	slf := files.NewSliceFile("", "", []files.File{fr})
+	fr := files.NewReaderFile(read)
+	slf := files.NewSliceDirectory([]files.DirEntry{files.FileEntry("", fr)})
 	fileReader := files.NewMultiFileReader(slf, true)
 
 	var out object
@@ -398,7 +340,7 @@ func (s *Shell) PatchData(root string, set bool, data interface{}) (string, erro
 func (s *Shell) PatchLink(root, path, childhash string, create bool) (string, error) {
 	var out object
 	return out.Hash, s.Request("object/patch/add-link", root, path, childhash).
-		Option("create", true).
+		Option("create", create).
 		Exec(context.Background(), &out)
 }
 
@@ -487,10 +429,8 @@ func (s *Shell) BlockPut(block []byte, format, mhtype string, mhlen int) (string
 		Key string
 	}
 
-	data := bytes.NewReader(block)
-	rc := ioutil.NopCloser(data)
-	fr := files.NewReaderFile("", "", rc, nil)
-	slf := files.NewSliceFile("", "", []files.File{fr})
+	fr := files.NewBytesFile(block)
+	slf := files.NewSliceDirectory([]files.DirEntry{files.FileEntry("", fr)})
 	fileReader := files.NewMultiFileReader(slf, true)
 
 	return out.Key, s.Request("block/put").
@@ -526,10 +466,8 @@ func (s *Shell) ObjectPut(obj *IpfsObject) (string, error) {
 		return "", err
 	}
 
-	rc := ioutil.NopCloser(&data)
-
-	fr := files.NewReaderFile("", "", rc, nil)
-	slf := files.NewSliceFile("", "", []files.File{fr})
+	fr := files.NewReaderFile(&data)
+	slf := files.NewSliceDirectory([]files.DirEntry{files.FileEntry("", fr)})
 	fileReader := files.NewMultiFileReader(slf, true)
 
 	var out object

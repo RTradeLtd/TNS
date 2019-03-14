@@ -6,17 +6,17 @@
 <h3 align="center">The Go implementation of the libp2p Networking Stack.</h3>
 
 <p align="center">
-  <a href="http://ipn.io"><img src="https://img.shields.io/badge/made%20by-Protocol%20Labs-blue.svg?style=flat-square" /></a>
-  <a href="http://libp2p.io/"><img src="https://img.shields.io/badge/project-libp2p-blue.svg?style=flat-square" /></a>
-  <a href="http://webchat.freenode.net/?channels=%23ipfs"><img src="https://img.shields.io/badge/freenode-%23ipfs-blue.svg?style=flat-square" /></a>
-  <a href="https://waffle.io/libp2p/libp2p"><img src="https://img.shields.io/badge/pm-waffle-blue.svg?style=flat-square" /></a>
+  <a href="http://protocol.ai"><img src="https://img.shields.io/badge/made%20by-Protocol%20Labs-blue.svg?style=flat-square" /></a>
+  <a href="http://libp2p.io/"><img src="https://img.shields.io/badge/project-libp2p-yellow.svg?style=flat-square" /></a>
+  <a href="http://webchat.freenode.net/?channels=%23libp2p"><img src="https://img.shields.io/badge/freenode-%23libp2p-yellow.svg?style=flat-square" /></a>
+  <a href="https://waffle.io/libp2p/libp2p"><img src="https://img.shields.io/badge/pm-waffle-yellow.svg?style=flat-square" /></a>
 </p>
 
 <p align="center">
   <a href="https://travis-ci.org/libp2p/go-libp2p"><img src="https://travis-ci.org/libp2p/go-libp2p.svg?branch=master" /></a>
   <br>
   <a href="https://github.com/RichardLitt/standard-readme"><img src="https://img.shields.io/badge/standard--readme-OK-green.svg?style=flat-square" /></a>
-  <a href="https://godoc.org/github.com/libp2p/go-libp2p"><img src="https://godoc.org/github.com/ipfs/go-libp2p?status.svg" /></a>
+  <a href="https://godoc.org/github.com/libp2p/go-libp2p"><img src="https://godoc.org/github.com/libp2p/go-libp2p?status.svg" /></a>
   <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.8.0-orange.svg?style=flat-square" /></a>
   <br>
 </p>
@@ -52,28 +52,27 @@ libp2p is the product of a long, and arduous quest of understanding -- a deep di
 > - [**The libp2p Specification**](https://github.com/libp2p/specs)
 > - [**go-libp2p implementation**](https://github.com/libp2p/go-libp2p)
 > - [**js-libp2p implementation**](https://github.com/libp2p/js-libp2p)
-
-
-## Bundles
-
-There is currently only one bundle of `go-libp2p`, this package. This bundle is used by [`go-ipfs`](https://github.com/ipfs/go-ipfs).
+> - [**rust-libp2p implementation**](https://github.com/libp2p/rust-libp2p)
 
 ## Usage
 
-`go-libp2p` repo is a place holder for the list of Go modules that compose Go libp2p, as well as its entry point.
+This repository (`go-libp2p`) serves as the entrypoint to the universe of modules that compose the Go implementation of the libp2p stack.
 
-### Install
+We mainly use [Go modules](https://github.com/golang/go/wiki/Modules) for our dependency and release management (and thus require go >= 1.11). In order to get the best developer experience, we recommend you do too. Otherwise, you may ocassionally encounter a breaking build as you'll be running off master (which, by definition, is not guaranteed to be stable).
 
-```bash
-> go get -u -d github.com/libp2p/go-libp2p/...
-> cd $GOPATH/src/github.com/libp2p/go-libp2p
-> make
-> make deps
+You can start using go-libp2p in your Go application simply by adding imports from our repos, e.g.:
+
+```go
+import "github.com/libp2p/go-libp2p"
 ```
+
+The next time you run `go get` or `go build`, the Go build tools will look for [available releases](https://github.com/libp2p/go-libp2p/releases), and will pick the highest available one.
+
+As new releases of go-libp2p are made available, you can upgrade your application by manually editing your `go.mod` file, or using the [Go tools](https://golang.org/cmd/go/#hdr-Maintaining_module_requirements) to maintain module requirements.
 
 ### API
 
-[![GoDoc](https://godoc.org/github.com/ipfs/go-libp2p?status.svg)](https://godoc.org/github.com/libp2p/go-libp2p)
+[![GoDoc](https://godoc.org/github.com/libp2p/go-libp2p?status.svg)](https://godoc.org/github.com/libp2p/go-libp2p)
 
 ### Examples
 
@@ -179,9 +178,7 @@ List of packages currently in existence for libp2p:
 | [`go-msgio`](//github.com/libp2p/go-msgio) | [![Travis CI](https://travis-ci.org/libp2p/go-msgio.svg?branch=master)](https://travis-ci.org/libp2p/go-msgio) | N/A | [![codecov](https://codecov.io/gh/libp2p/go-msgio/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-msgio) | length prefixed data channel |
 | [`go-addr-util`](//github.com/libp2p/go-addr-util) | [![Travis CI](https://travis-ci.org/libp2p/go-addr-util.svg?branch=master)](https://travis-ci.org/libp2p/go-addr-util) | N/A | [![codecov](https://codecov.io/gh/libp2p/go-addr-util/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-addr-util) | address utilities for libp2p swarm |
 | [`go-buffer-pool`](//github.com/libp2p/go-buffer-pool) | [![Travis CI](https://travis-ci.org/libp2p/go-buffer-pool.svg?branch=master)](https://travis-ci.org/libp2p/go-buffer-pool) | N/A | [![codecov](https://codecov.io/gh/libp2p/go-buffer-pool/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-buffer-pool) | a variable size buffer pool for go |
-| [`go-libp2p-loggables`](//github.com/libp2p/go-libp2p-loggables) | [![Travis CI](https://travis-ci.org/libp2p/go-libp2p-loggables.svg?branch=master)](https://travis-ci.org/libp2p/go-libp2p-loggables) | N/A | [![codecov](https://codecov.io/gh/libp2p/go-libp2p-loggables/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-libp2p-loggables) | logging helpers |
 | [`go-libp2p-routing-helpers`](//github.com/libp2p/go-libp2p-routing-helpers) | [![Travis CI](https://travis-ci.org/libp2p/go-libp2p-routing-helpers.svg?branch=master)](https://travis-ci.org/libp2p/go-libp2p-routing-helpers) | [![jenkins](https://ci.ipfs.team/buildStatus/icon?job=libp2p/go-libp2p-routing-helpers/master)](https://ci.ipfs.team/job/libp2p/job/go-libp2p-routing-helpers/job/master/) | [![codecov](https://codecov.io/gh/libp2p/go-libp2p-routing-helpers/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-libp2p-routing-helpers) | routing helpers |
-| [`go-maddr-filter`](//github.com/libp2p/go-maddr-filter) | [![Travis CI](https://travis-ci.org/libp2p/go-maddr-filter.svg?branch=master)](https://travis-ci.org/libp2p/go-maddr-filter) | N/A | [![codecov](https://codecov.io/gh/libp2p/go-maddr-filter/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-maddr-filter) | a library to perform filtering of multiaddrs. |
 | [`go-reuseport`](//github.com/libp2p/go-reuseport) | [![Travis CI](https://travis-ci.org/libp2p/go-reuseport.svg?branch=master)](https://travis-ci.org/libp2p/go-reuseport) | N/A | [![codecov](https://codecov.io/gh/libp2p/go-reuseport/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-reuseport) | enables reuse of addresses |
 | [`go-sockaddr`](//github.com/libp2p/go-sockaddr) | [![Travis CI](https://travis-ci.org/libp2p/go-sockaddr.svg?branch=master)](https://travis-ci.org/libp2p/go-sockaddr) | N/A | [![codecov](https://codecov.io/gh/libp2p/go-sockaddr/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-sockaddr) | utils for sockaddr conversions |
 | [`go-flow-metrics`](//github.com/libp2p/go-flow-metrics) | [![Travis CI](https://travis-ci.org/libp2p/go-flow-metrics.svg?branch=master)](https://travis-ci.org/libp2p/go-flow-metrics) | N/A | [![codecov](https://codecov.io/gh/libp2p/go-flow-metrics/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-flow-metrics) | metrics library |
@@ -190,10 +187,9 @@ List of packages currently in existence for libp2p:
 | [`go-libp2p-examples`](//github.com/libp2p/go-libp2p-examples) | [![Travis CI](https://travis-ci.org/libp2p/go-libp2p-examples.svg?branch=master)](https://travis-ci.org/libp2p/go-libp2p-examples) | [![jenkins](https://ci.ipfs.team/buildStatus/icon?job=libp2p/go-libp2p-examples/master)](https://ci.ipfs.team/job/libp2p/job/go-libp2p-examples/job/master/) | [![codecov](https://codecov.io/gh/libp2p/go-libp2p-examples/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-libp2p-examples) | go-libp2p examples and tutorials |
 | [`go-libp2p-circuit-progs`](//github.com/libp2p/go-libp2p-circuit-progs) | [![Travis CI](https://travis-ci.org/libp2p/go-libp2p-circuit-progs.svg?branch=master)](https://travis-ci.org/libp2p/go-libp2p-circuit-progs) | N/A | [![codecov](https://codecov.io/gh/libp2p/go-libp2p-circuit-progs/branch/master/graph/badge.svg)](https://codecov.io/gh/libp2p/go-libp2p-circuit-progs) | testing programs for go-libp2p-circuit |
 
-
 # Contribute
 
-go-libp2p is part of [The IPFS Project](https://github.com/ipfs/ipfs), and is MIT licensed open source software. We welcome contributions big and small! Take a look at the [community contributing notes](https://github.com/ipfs/community/blob/master/contributing.md). Please make sure to check the [issues](https://github.com/ipfs/go-libp2p/issues). Search the closed ones before reporting things, and help us with the open ones.
+go-libp2p is part of [The IPFS Project](https://github.com/ipfs/ipfs), and is MIT licensed open source software. We welcome contributions big and small! Take a look at the [community contributing notes](https://github.com/ipfs/community/blob/master/CONTRIBUTING.md). Please make sure to check the [issues](https://github.com/ipfs/go-libp2p/issues). Search the closed ones before reporting things, and help us with the open ones.
 
 Guidelines:
 
@@ -210,56 +206,3 @@ There's a few things you can do right now to help out:
  - Go through the modules below and **check out existing issues**. This would be especially useful for modules in active development. Some knowledge of IPFS/libp2p may be required, as well as the infrasture behind it - for instance, you may need to read up on p2p and more complex operations like muxing to be able to help technically.
  - **Perform code reviews**.
  - **Add tests**. There can never be enough tests.
-
-## Modularizing go-libp2p
-
-We have currently a work in progress of modularizing go-libp2p from a repo monolith to several packages in different repos that can be reused for other projects of swapped for custom libp2p builds.
-
-We want to maintain history, so we'll use git-subtree for extracting packages. Find instructions below:
-
-```sh
-# 1) create the extracted tree (has the directory specified as -P as its root)
-> cd go-libp2p/
-> git subtree split -P p2p/crypto/secio/ -b libp2p-secio
-62b0a5c21574bcbe06c422785cd5feff378ae5bd
-# important to delete the tree now, so that outdated imports fail in step 5
-> git rm -r p2p/crypto/secio/
-> git commit
-> cd ../
-
-# 2) make the new repo
-> mkdir go-libp2p-secio
-> cd go-libp2p-secio/
-> git init && git commit --allow-empty
-
-# 3) fetch the extracted tree from the previous repo
-> git remote add libp2p ../go-libp2p
-> git fetch libp2p
-> git reset --hard libp2p/libp2p-secio
-
-# 4) update self import paths
-> sed -someflagsidontknow 'go-libp2p/p2p/crypto/secio' 'golibp2p-secio'
-> git commit
-
-# 5) create package.json and check all imports are correct
-> vim package.json
-> gx --verbose install --global
-> gx-go rewrite
-> go test ./...
-> gx-go rewrite --undo
-> git commit
-
-# 4) make the package ready
-> vim README.md LICENSE
-> git commit
-
-# 5) bump the version separately
-> vim package.json
-> gx publish
-> git add package.json .gx/
-> git commit -m 'Publish 1.2.3'
-
-# 6) clean up and push
-> git remote rm libp2p
-> git push origin master
-```

@@ -15,24 +15,31 @@ import (
 // IpfsManager is our helper wrapper for IPFS
 type IpfsManager struct {
 	shell       *ipfsapi.Shell
-	keystore    *KeystoreManager
 	nodeAPIAddr string
 }
 
-// NewManager is used to initialize our Ipfs manager struct
-func NewManager(ipfsURL string, keystore *KeystoreManager, timeout time.Duration) (*IpfsManager, error) {
-	// set up shell
-	sh := newShell(ipfsURL)
-	sh.SetTimeout(time.Minute * 5)
+// NewManager is used to instantiate IpfsManager with a connection to an ipfs api.
+// if token is provided, we use it to establish an authentication, direct connection
+// to an ipfs node api, which involves skipping multiaddr parsing. This is useful
+// in situations such as interacting with Nexus' delegator to talk with private ipfs
+// networks which use non-standard connection methods.
+func NewManager(ipfsURL, token string, timeout time.Duration) (*IpfsManager, error) {
+	var sh *ipfsapi.Shell
+	if token != "" {
+		sh = ipfsapi.NewDirectShell(ipfsURL).WithAuthorization(token)
+	} else {
+		sh = ipfsapi.NewShell(ipfsURL)
+	}
+	// validate we have an active connection
 	if _, err := sh.ID(); err != nil {
 		return nil, fmt.Errorf("failed to connect to ipfs node at '%s': %s", ipfsURL, err.Error())
 	}
-
-	// instantiate manager
+	// set timeout
+	sh.SetTimeout(timeout)
+	// instantiate and return manager
 	return &IpfsManager{
 		shell:       sh,
 		nodeAPIAddr: ipfsURL,
-		keystore:    keystore,
 	}, nil
 }
 
@@ -40,10 +47,13 @@ func NewManager(ipfsURL string, keystore *KeystoreManager, timeout time.Duration
 func (im *IpfsManager) NodeAddress() string { return im.nodeAPIAddr }
 
 // Add is a wrapper used to add a file to IPFS
-// currently until https://github.com/ipfs/go-ipfs/issues/5376 it is added with no pin
-// thus a manual pin must be triggered afterwards
-func (im *IpfsManager) Add(r io.Reader) (string, error) {
-	return im.shell.AddNoPin(r)
+func (im *IpfsManager) Add(r io.Reader, options ...ipfsapi.AddOpts) (string, error) {
+	return im.shell.Add(r, options...)
+}
+
+// AddDir is used to add a directory to ipfs
+func (im *IpfsManager) AddDir(dir string) (string, error) {
+	return im.shell.AddDir(dir)
 }
 
 // DagPut is used to store data as an ipld object
@@ -58,7 +68,11 @@ func (im *IpfsManager) DagGet(cid string, out interface{}) error {
 
 // Cat is used to get cat an ipfs object
 func (im *IpfsManager) Cat(cid string) ([]byte, error) {
-	r, err := im.shell.Cat(cid)
+	var (
+		r   io.ReadCloser
+		err error
+	)
+	r, err = im.shell.Cat(cid)
 	if err != nil {
 		return nil, err
 	}
@@ -71,14 +85,51 @@ func (im *IpfsManager) Stat(hash string) (*ipfsapi.ObjectStats, error) {
 	return im.shell.ObjectStat(hash)
 }
 
-// Pin is a wrapper method to pin a hash to the local node,
-// but also alert the rest of the local nodes to pin
-// after which the pin will be sent to the cluster
+// PatchLink is used to link two objects together
+// path really means the name of the link
+// create is used to specify whether intermediary nodes should be generated
+func (im *IpfsManager) PatchLink(root, path, childHash string, create bool) (string, error) {
+	return im.shell.PatchLink(root, path, childHash, create)
+}
+
+// AppendData is used to modify the raw data within an object, to a max of 1MB
+// Anything larger than 1MB will not be respected by the rest of the network
+func (im *IpfsManager) AppendData(root string, data interface{}) (string, error) {
+	return im.shell.PatchData(root, false, data)
+}
+
+// SetData is used to set the data field of an ipfs object
+func (im *IpfsManager) SetData(root string, data interface{}) (string, error) {
+	return im.shell.PatchData(root, true, data)
+}
+
+// NewObject is used to create a generic object from a template type
+func (im *IpfsManager) NewObject(template string) (string, error) {
+	return im.shell.NewObject(template)
+}
+
+// Pin is a wrapper method to pin a hash.
+// pinning prevents GC and persistently stores on disk
 func (im *IpfsManager) Pin(hash string) error {
-	if err := im.shell.Pin(hash); err != nil {
-		return fmt.Errorf("failed to pin '%s': %s", hash, err.Error())
+	return im.shell.Pin(hash)
+}
+
+// PinUpdate is used to update one pin to another, while making sure all objects
+// in the new pin are local, followed by removing the old pin.
+//
+// This is an optimized version of pinning the new content, and then removing the
+// old content.
+//
+// returns the new pin path
+func (im *IpfsManager) PinUpdate(from, to string) (string, error) {
+	out, err := im.shell.PinUpdate(from, to)
+	if err != nil {
+		return "", err
 	}
-	return nil
+	if len(out) == 0 || len(out["Pins"]) == 0 {
+		return "", errors.New("failed to retrieve new pin paths")
+	}
+	return out["Pins"][1], nil
 }
 
 // CheckPin checks whether or not a pin is present
@@ -95,17 +146,12 @@ func (im *IpfsManager) CheckPin(hash string) (bool, error) {
 
 // Publish is used for fine grained control over IPNS record publishing
 func (im *IpfsManager) Publish(contentHash, keyName string, lifetime, ttl time.Duration, resolve bool) (*ipfsapi.PublishResponse, error) {
-	if im.keystore == nil {
-		return nil, errors.New("attempting to create ipns entry with dynamic keys keystore is not enabled/generated yet")
-	}
-
-	if keyPresent, err := im.keystore.CheckIfKeyExists(keyName); err != nil {
-		return nil, err
-	} else if !keyPresent {
-		return nil, errors.New("attempting to sign with non existent key")
-	}
-
 	return im.shell.PublishWithDetails(contentHash, keyName, lifetime, ttl, resolve)
+}
+
+// Resolve is used to resolve an IPNS hash
+func (im *IpfsManager) Resolve(hash string) (string, error) {
+	return im.shell.Resolve(hash)
 }
 
 // PubSubPublish is used to publish a a message to the given topic
@@ -136,4 +182,22 @@ func (im *IpfsManager) CustomRequest(ctx context.Context, url, commad string,
 	}
 
 	return resp, nil
+}
+
+// SwarmConnect is use to open a connection a one or more ipfs nodes
+func (im *IpfsManager) SwarmConnect(ctx context.Context, addrs ...string) error {
+	return im.shell.SwarmConnect(ctx, addrs...)
+}
+
+// Refs is used to retrieve references of a hash
+func (im *IpfsManager) Refs(hash string, recursive, unique bool) ([]string, error) {
+	refs, err := im.shell.Refs(hash, recursive, unique)
+	if err != nil {
+		return nil, err
+	}
+	var references []string
+	for ref := range refs {
+		references = append(references, ref)
+	}
+	return references, nil
 }

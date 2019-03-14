@@ -1,10 +1,12 @@
+GO=env GO111MODULE=on go
+GONOMOD=env GO111MODULE=off go
 all: build
 
 .PHONY: deps
 deps:
-	dep ensure -v
-	git submodule update --init
-
+	$(GO) mod vendor
+	$(GO) mod tidy
+	
 .PHONY: build
 build: deps
 	go build ./...

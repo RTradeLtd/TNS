@@ -20,3 +20,8 @@ clean: stop-testenv
 	@echo "Removing binary..."
 	( cd testenv ; make clean )
 	@echo "===================          done           ==================="
+
+# go vet ./...
+.PHONY: vet
+vet:
+	go vet ./...

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/jinzhu/gorm"
+	"github.com/RTradeLtd/gorm"
 	"github.com/lib/pq"
 )
 
@@ -43,6 +43,15 @@ func (im *IpnsManager) FindByUserName(username string) (*[]IPNS, error) {
 		return nil, check.Error
 	}
 	return &entries, nil
+}
+
+// FindAll is used to find all IPNS records
+func (im *IpnsManager) FindAll() ([]IPNS, error) {
+	entries := []IPNS{}
+	if err := im.DB.Model(&IPNS{}).Find(&entries).Error; err != nil {
+		return nil, err
+	}
+	return entries, nil
 }
 
 // FindByIPNSHash is used to find an IPNS record from our database searching for

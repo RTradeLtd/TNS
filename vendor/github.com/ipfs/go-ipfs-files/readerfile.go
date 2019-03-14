@@ -1,8 +1,9 @@
 package files
 
 import (
-	"errors"
+	"bytes"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -10,40 +11,37 @@ import (
 // ReaderFile is a implementation of File created from an `io.Reader`.
 // ReaderFiles are never directories, and can be read from and closed.
 type ReaderFile struct {
-	filename string
-	fullpath string
-	abspath  string
-	reader   io.ReadCloser
-	stat     os.FileInfo
+	abspath string
+	reader  io.ReadCloser
+	stat    os.FileInfo
+
+	fsize   int64
 }
 
-func NewReaderFile(filename, path string, reader io.ReadCloser, stat os.FileInfo) *ReaderFile {
-	return &ReaderFile{filename, path, path, reader, stat}
+func NewBytesFile(b []byte) File {
+	return &ReaderFile{"", NewReaderFile(bytes.NewReader(b)), nil, int64(len(b))}
 }
 
-func NewReaderPathFile(filename, path string, reader io.ReadCloser, stat os.FileInfo) (*ReaderFile, error) {
+func NewReaderFile(reader io.Reader) File {
+	return NewReaderStatFile(reader, nil)
+}
+
+func NewReaderStatFile(reader io.Reader, stat os.FileInfo) File {
+	rc, ok := reader.(io.ReadCloser)
+	if !ok {
+		rc = ioutil.NopCloser(reader)
+	}
+
+	return &ReaderFile{"", rc, stat, -1}
+}
+
+func NewReaderPathFile(path string, reader io.ReadCloser, stat os.FileInfo) (*ReaderFile, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ReaderFile{filename, path, abspath, reader, stat}, nil
-}
-
-func (f *ReaderFile) IsDirectory() bool {
-	return false
-}
-
-func (f *ReaderFile) NextFile() (File, error) {
-	return nil, ErrNotDirectory
-}
-
-func (f *ReaderFile) FileName() string {
-	return f.filename
-}
-
-func (f *ReaderFile) FullPath() string {
-	return f.fullpath
+	return &ReaderFile{abspath, reader, stat, -1}, nil
 }
 
 func (f *ReaderFile) AbsPath() string {
@@ -64,7 +62,21 @@ func (f *ReaderFile) Stat() os.FileInfo {
 
 func (f *ReaderFile) Size() (int64, error) {
 	if f.stat == nil {
-		return 0, errors.New("File size unknown")
+		if f.fsize >= 0 {
+			return f.fsize, nil
+		}
+		return 0, ErrNotSupported
 	}
 	return f.stat.Size(), nil
 }
+
+func (f *ReaderFile) Seek(offset int64, whence int) (int64, error) {
+	if s, ok := f.reader.(io.Seeker); ok {
+		return s.Seek(offset, whence)
+	}
+
+	return 0, ErrNotSupported
+}
+
+var _ File = &ReaderFile{}
+var _ FileInfo = &ReaderFile{}

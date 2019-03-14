@@ -2,20 +2,20 @@ package config
 
 // TemporalConfig defines Temporal configuration fields
 type TemporalConfig struct {
-	API          `json:"api,omitempty"`
-	Database     `json:"database,omitempty"`
-	IPFS         `json:"ipfs,omitempty"`
-	IPFSCluster  `json:"ipfs_cluster,omitempty"`
-	MINIO        `json:"minio,omitempty"`
-	RabbitMQ     `json:"rabbitmq,omitempty"`
-	AWS          `json:"aws,omitempty"`
-	Sendgrid     `json:"sendgrid,omitempty"`
-	Ethereum     `json:"ethereum,omitempty"`
-	Wallets      `json:"wallets,omitempty"`
-	TNS          `json:"tns,omitempty"`
-	APIKeys      `json:"api_keys,omitempty"`
-	Endpoints    `json:"endpoints,omitempty"`
-	Orchestrator `json:"orchestrator,omitempty"`
+	API         `json:"api,omitempty"`
+	APIKeys     `json:"api_keys,omitempty"`
+	AWS         `json:"aws,omitempty"`
+	Database    `json:"database,omitempty"`
+	Services    `json:"services,omitempty"`
+	Ethereum    `json:"ethereum,omitempty"`
+	IPFSCluster `json:"ipfs_cluster,omitempty"`
+	IPFS        `json:"ipfs,omitempty"`
+	Pay         `json:"pay,omitempty"`
+	RabbitMQ    `json:"rabbitmq,omitempty"`
+	Sendgrid    `json:"sendgrid,omitempty"`
+	Stripe      `json:"stripe,omitempty"`
+	Wallets     `json:"wallets,omitempty"`
+	LogDir      string `json:"log_dir,omitempty"`
 }
 
 // API configures the Temporal API
@@ -24,26 +24,36 @@ type API struct {
 		Certificates struct {
 			CertPath string `json:"cert_path"`
 			KeyPath  string `json:"key_path"`
-		}
+		} `json:"certificates"`
 		ListenAddress string `json:"listen_address"`
+		// defines parameters for prometheus metric collector
+		Prometheus struct {
+			IP   string `json:"ip"`
+			Port string `json:"port"`
+		} `json:"prometheus"`
+		CORS struct {
+			AllowedOrigin []string `json:"allowed_origins"`
+		} `json:"cords"`
 		// define the maximum number of people allowed to connect to the API
 		Limit string `json:"limit"`
 	} `json:"connection"`
-	Sessions struct {
-		AuthKey       string `json:"auth_key"`
-		EncryptionKey string `json:"encryption_key"`
-	} `json:"sessions"`
-	JwtKey               string  `json:"jwt_key"`
-	SizeLimitInGigaBytes string  `json:"size_limit_in_giga_bytes"`
-	Payment              Payment `json:"payment"`
-	LogFile              string  `json:"logfile"`
+	JWT struct {
+		Key   string `json:"key"`
+		Realm string `json:"realm"`
+	} `json:"jwt"`
+	SizeLimitInGigaBytes string `json:"size_limit_in_giga_bytes"`
 }
 
-// Payment configures the GRPC Payment Server API
-type Payment struct {
+// Pay configures connection to our payment processor
+type Pay struct {
 	Address  string `json:"address"`
 	Port     string `json:"port"`
 	Protocol string `json:"protocol"`
+	TLS      struct {
+		CertPath string `json:"cert"`
+		KeyPath  string `json:"key"`
+	} `json:"tls"`
+	AuthKey string `json:"auth_key"`
 }
 
 // Database configures Temporal's connection to a Postgres database
@@ -72,19 +82,14 @@ type IPFSCluster struct {
 	} `json:"api_connection"`
 }
 
-// MINIO configures Temporal's connection to a Minio instance
-type MINIO struct {
-	AccessKey  string `json:"access_key"`
-	SecretKey  string `json:"secret_key"`
-	Connection struct {
-		IP   string `json:"ip"`
-		Port string `json:"port"`
-	} `json:"connection"`
-}
-
 // RabbitMQ configures Temporal's connection to a RabbitMQ instance
 type RabbitMQ struct {
-	URL string `json:"url"`
+	URL       string `json:"url"`
+	TLSConfig struct {
+		CertFile   string `json:"cert_file"`
+		KeyFile    string `json:"key_file"`
+		CACertFile string `json:"ca_cert_file"`
+	} `json:"tls_config"`
 }
 
 // AWS configures Temporal's connection to AWS
@@ -135,32 +140,17 @@ type Wallets struct {
 	LTC  string `json:"ltc"`
 }
 
-// TNS configures our TNS manager
-type TNS struct {
-	ZoneName           string `json:"zone_name"`
-	ZoneManagerKeyName string `json:"zone_manager_key_name"`
-	ZoneKeyName        string `json:"zone_key_name"`
-	LogFile            string `json:"log_file"`
-}
-
 // APIKeys are the various API keys we use
 type APIKeys struct {
 	ChainRider string `json:"chain_rider"`
 }
 
-// Endpoints are various endpoints we connect to
-type Endpoints struct {
+// Services are various endpoints we connect to
+type Services struct {
 	MoneroRPC string `json:"monero_rpc"`
-	Lens      struct {
-		URL string `json:"url"`
-		TLS struct {
-			CertPath string `json:"cert_path"`
-			KeyFile  string `json:"key_file"`
-		}
-		AuthKey string `json:"auth_key"`
-		LogFile string `json:"log_file"`
-	} `json:"lens"`
-	MongoDB struct {
+	Lens      `json:"lens"`
+	Nexus     `json:"nexus"`
+	MongoDB   struct {
 		URL              string `json:"url"`
 		DB               string `json:"db"`
 		UploadCollection string `json:"uploads"`
@@ -170,20 +160,48 @@ type Endpoints struct {
 		User string `json:"user"`
 		Pass string `json:"pass"`
 	} `json:"raven"`
-	Krab struct {
-		URL string `json:"url"`
-		TLS struct {
-			CertPath string `json:"cert_path"`
-			KeyFile  string `json:"key_file"`
-		}
-		AuthKey          string `json:"auth_key"`
-		LogFile          string `json:"log_file"`
-		KeystorePassword string `json:"keystore_password"`
-	} `json:"krab"`
+	Krab         `json:"krab"`
+	KrabFallback Krab `json:"krab_fallback"`
 }
 
-// Orchestrator defines options for the IPFS orchestrator
-type Orchestrator struct {
+// Krab is used to for key management
+type Krab struct {
+	URL string `json:"url"`
+	TLS struct {
+		CertPath string `json:"cert_path"`
+		KeyFile  string `json:"key_file"`
+	}
+	AuthKey          string `json:"auth_key"`
+	LogFile          string `json:"log_file"`
+	KeystorePassword string `json:"keystore_password"`
+}
+
+// KrabFallback is a fallback configuration for
+// connecting to a secondary krab server
+type KrabFallback Krab
+
+// Lens defines options for the Lens search engine
+type Lens struct {
+	URL string `json:"url"`
+	TLS struct {
+		CertPath string `json:"cert_path"`
+		KeyFile  string `json:"key_file"`
+	} `json:"tls"`
+	AuthKey string `json:"auth_key"`
+	Options struct {
+		Engine struct {
+			StorePath string `json:"store_path"`
+			Queue     struct {
+				Rate  int `json:"rate"`
+				Batch int `json:"batch"`
+			} `json:"queue"`
+		} `json:"engine"`
+	} `json:"options"`
+}
+
+// Nexus defines options for the Nexus, our private network
+// management tool for IPFS.
+type Nexus struct {
 	Host string `json:"host"`
 	Port string `json:"port"`
 	Key  string `json:"key"`
@@ -191,4 +209,13 @@ type Orchestrator struct {
 		CertPath string `json:"cert"`
 		KeyPath  string `json:"key"`
 	} `json:"tls"`
+	Delegator struct {
+		Port string `json:"port"`
+	} `json:"delegator"`
+}
+
+// Stripe is used to configure our connection with stripe api
+type Stripe struct {
+	PublishableKey string `json:"publishable_key"`
+	SecretKey      string `json:"secret_key"`
 }

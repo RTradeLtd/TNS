@@ -41,10 +41,10 @@ func GenerateConfig(configPath string) error {
 }
 
 func (t *TemporalConfig) setDefaults() {
-	if t.API.LogFile == "" {
-		t.API.LogFile = "/var/log/temporal/api_service.log"
+	if t.LogDir == "" {
+		t.LogDir = "/var/log/temporal/"
 	}
-	if t.TNS.LogFile == "" {
-		t.TNS.LogFile = "/var/log/temporal/tns.log"
+	if len(t.API.Connection.CORS.AllowedOrigin) == 0 {
+		t.API.Connection.CORS.AllowedOrigin = []string{"temporal.cloud", "backup.temporal.cloud"}
 	}
 }
