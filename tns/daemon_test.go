@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/RTradeLtd/database"
+	"github.com/RTradeLtd/gorm"
 	"github.com/RTradeLtd/kaas"
 	"github.com/RTradeLtd/rtfs"
-	"github.com/jinzhu/gorm"
 
 	"github.com/RTradeLtd/config"
 	ci "github.com/libp2p/go-libp2p-crypto"
@@ -16,6 +16,7 @@ import (
 
 const (
 	testCfgPath = "../testenv/config.json"
+	listenAddr  = "/ip4/127.0.0.1/tcp/10050"
 )
 
 func TestNewDaemon(t *testing.T) {
@@ -27,13 +28,13 @@ func TestNewDaemon(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	kbc, err := kaas.NewClient(cfg.Endpoints)
+	kbc, err := kaas.NewClient(cfg.Services, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ipfs, err := rtfs.NewManager(
 		cfg.IPFS.APIConnection.Host+":"+cfg.IPFS.APIConnection.Port,
-		nil, time.Minute*10,
+		"", time.Minute*10,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -42,12 +43,13 @@ func TestNewDaemon(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	daemon, err := NewDaemon(&DaemonOpts{
-		ManagerPK: pk,
-		LogFile:   "./templogs.log",
-		DB:        db,
-		IPFS:      ipfs,
-		KBC:       kbc,
+	daemon, err := NewDaemon(context.Background(), &Options{
+		ManagerPK:  pk,
+		LogFile:    "./templogs.log",
+		DB:         db,
+		IPFS:       ipfs,
+		KBC:        kbc,
+		ListenAddr: listenAddr,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -60,11 +62,11 @@ func TestNewDaemon(t *testing.T) {
 }
 
 func loadDatabase(cfg *config.TemporalConfig) (*gorm.DB, error) {
-	return database.OpenDBConnection(database.DBOptions{
-		User:           cfg.Database.Username,
-		Password:       cfg.Database.Password,
-		Address:        cfg.Database.URL,
-		Port:           cfg.Database.Port,
+	dbm, err := database.New(cfg, database.Options{
 		SSLModeDisable: true,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return dbm.DB, nil
 }

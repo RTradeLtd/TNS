@@ -1,14 +1,7 @@
 package tns
 
 import (
-	"github.com/RTradeLtd/kaas"
-	"github.com/RTradeLtd/rtfs"
-	log "github.com/sirupsen/logrus"
-
-	"github.com/RTradeLtd/database/models"
 	ci "github.com/libp2p/go-libp2p-crypto"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -84,29 +77,6 @@ type HostOpts struct {
 	Port      string `json:"port"`
 	IPVersion string `json:"ip_version"`
 	Protocol  string `json:"protocol"`
-}
-
-// Daemon is used to manage a local instance of a temporal name server
-// A single Daemon (aka, manager) private key can be reused across multiple zones
-type Daemon struct {
-	ID peer.ID
-	// pk is also our zone manager private key
-	pk ci.PrivKey
-	// zones is a map of zoneName -> latestIPLDHash
-	zones map[string]string
-	host  host.Host
-	zm    *models.ZoneManager
-	rm    *models.RecordManager
-	l     *log.Logger
-	kbc   *kaas.Client
-	ipfs  rtfs.Manager
-}
-
-// Client is used to query a TNS daemon
-type Client struct {
-	PrivateKey ci.PrivKey
-	Host       host.Host
-	IPFSAPI    string
 }
 
 // TNS is an interface used by a TNS client or daemon

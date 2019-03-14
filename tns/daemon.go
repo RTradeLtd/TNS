@@ -11,9 +11,10 @@ import (
 	"github.com/RTradeLtd/rtfs"
 
 	"github.com/RTradeLtd/database/models"
+	"github.com/RTradeLtd/gorm"
 	pb "github.com/RTradeLtd/grpc/krab"
 	"github.com/RTradeLtd/kaas"
-	"github.com/jinzhu/gorm"
+	host "github.com/RTradeLtd/tns/host"
 	ci "github.com/libp2p/go-libp2p-crypto"
 	net "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -21,17 +22,34 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// DaemonOpts defines options for controlling our TNS Manager daemon
-type DaemonOpts struct {
-	ManagerPK ci.PrivKey `json:"manager_pk"`
-	LogFile   string     `json:"log_file"`
-	DB        *gorm.DB   `json:"db"`
-	IPFS      rtfs.Manager
-	KBC       *kaas.Client
+// Options defines options for controlling our TNS Manager daemon
+type Options struct {
+	ManagerPK  ci.PrivKey `json:"manager_pk"`
+	LogFile    string     `json:"log_file"`
+	DB         *gorm.DB   `json:"db"`
+	IPFS       rtfs.Manager
+	KBC        *kaas.Client
+	ListenAddr string
+}
+
+// Daemon is used to manage a local instance of a temporal name server
+// A single Daemon (aka, manager) private key can be reused across multiple zones
+type Daemon struct {
+	ID peer.ID
+	// pk is also our zone manager private key
+	pk ci.PrivKey
+	// zones is a map of zoneName -> latestIPLDHash
+	zones map[string]string
+	h     *host.Host
+	zm    *models.ZoneManager
+	rm    *models.RecordManager
+	l     *log.Logger
+	kbc   *kaas.Client
+	ipfs  rtfs.Manager
 }
 
 // NewDaemon is used to create a new tns manager daemon
-func NewDaemon(opts *DaemonOpts) (*Daemon, error) {
+func NewDaemon(ctx context.Context, opts *Options) (*Daemon, error) {
 	var (
 		logger = log.New()
 		err    error
@@ -50,10 +68,11 @@ func NewDaemon(opts *DaemonOpts) (*Daemon, error) {
 		rm:    models.NewRecordManager(opts.DB),
 		zones: make(map[string]string),
 	}
-	// create our libp2p host
-	if err := daemon.MakeHost(opts.ManagerPK, nil); err != nil {
+	lHost, err := host.NewHost(ctx, opts.ManagerPK, opts.ListenAddr)
+	if err != nil {
 		return nil, err
 	}
+	daemon.h = lHost
 	// open log file
 	logfile, err := os.OpenFile(opts.LogFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0640)
 	if err != nil {
@@ -70,7 +89,7 @@ func NewDaemon(opts *DaemonOpts) (*Daemon, error) {
 func (d *Daemon) Run(ctx context.Context) error {
 	d.LogInfo("generating echo stream")
 	// our echo stream is a basic test used to determine whether or not a tns manager daemon is functioning properly
-	d.host.SetStreamHandler(
+	d.h.SetStreamHandler(
 		CommandEcho, func(s net.Stream) {
 			d.LogInfo("new stream detected")
 			if err := d.HandleQuery(s, "echo"); err != nil {
@@ -83,7 +102,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		})
 	d.LogInfo("generating record request stream")
 	// our record request stream allows clients to request a record from the tns manager daemon
-	d.host.SetStreamHandler(
+	d.h.SetStreamHandler(
 		CommandRecordRequest, func(s net.Stream) {
 			d.LogInfo("new stream detected")
 			if err := d.HandleQuery(s, "record-request"); err != nil {
@@ -96,7 +115,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		})
 	d.LogInfo("generating zone request stream")
 	// our zone request stream allows clients to request a zone from the tns manager daemon
-	d.host.SetStreamHandler(
+	d.h.SetStreamHandler(
 		CommandZoneRequest, func(s net.Stream) {
 			d.LogInfo("new stream detected")
 			if err := d.HandleQuery(s, "zone-request"); err != nil {
@@ -161,27 +180,17 @@ func (d *Daemon) HandleQuery(s net.Stream, cmd string) error {
 	}
 }
 
-// MakeHost is used to generate the libp2p connection for our TNS daemon
-func (d *Daemon) MakeHost(pk ci.PrivKey, opts *HostOpts) error {
-	host, err := makeHost(pk, opts, false)
-	if err != nil {
-		return err
-	}
-	d.host = host
-	return nil
-}
-
 // HostMultiAddress is used to get a formatted libp2p host multi address
 func (d *Daemon) HostMultiAddress() (ma.Multiaddr, error) {
-	return ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", d.host.ID().Pretty()))
+	return ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", d.h.ID().Pretty()))
 }
 
 // ReachableAddress is used to get a reachable address for this host
 func (d *Daemon) ReachableAddress(addressIndex int) (string, error) {
-	if addressIndex > len(d.host.Addrs()) {
+	if addressIndex > len(d.h.Addrs()) {
 		return "", errors.New("invalid index")
 	}
-	ipAddr := d.host.Addrs()[addressIndex]
+	ipAddr := d.h.Addrs()[addressIndex]
 	multiAddr, err := d.HostMultiAddress()
 	if err != nil {
 		return "", err
@@ -239,7 +248,7 @@ func (d *Daemon) CreateZone(req *ZoneCreation) (string, error) {
 
 // Close is used to terminate our daemon
 func (d *Daemon) Close() error {
-	return d.host.Close()
+	return d.h.Close()
 }
 
 // Zones is used to retrieve all the zones being managed by this daemon

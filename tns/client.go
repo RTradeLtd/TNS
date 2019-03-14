@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 
+	host "github.com/RTradeLtd/tns/host"
 	ci "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
-	pstore "github.com/libp2p/go-libp2p-peerstore"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 const (
@@ -23,24 +21,46 @@ const (
 	dev                       = true
 )
 
-// GenerateTNSClient is used to generate a TNS Client
-func GenerateTNSClient(genPK bool, pk ci.PrivKey) (*Client, error) {
+// ClientOptions is used to configure the client during ininitialization
+type ClientOptions struct {
+	GenPK      bool
+	PK         ci.PrivKey
+	ListenAddr string
+}
+
+// Client is used to query a TNS daemon
+type Client struct {
+	H       *host.Host
+	IPFSAPI string
+}
+
+// NewClient is used to instantiate a TNS Client
+func NewClient(ctx context.Context, opts ClientOptions) (*Client, error) {
 	var (
 		privateKey ci.PrivKey
 		err        error
 	)
 	// allow the client to provide the crytographic identity to be used, or generate one
-	if genPK {
+	if opts.GenPK {
 		privateKey, _, err = ci.GenerateKeyPair(ci.Ed25519, 256)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		privateKey = pk
+		privateKey = opts.PK
+	}
+	lHost, err := host.NewHost(ctx, privateKey, opts.ListenAddr)
+	if err != nil {
+		return nil, err
 	}
 	return &Client{
-		PrivateKey: privateKey,
+		H: lHost,
 	}, nil
+}
+
+// Close is used to close our libp2p host
+func (c *Client) Close() error {
+	return c.H.Close()
 }
 
 // QueryTNS is used to query a peer for TNS name resolution
@@ -100,52 +120,4 @@ func (c *Client) queryEcho(peerID peer.ID) (interface{}, error) {
 	return c.GenerateStreamAndWrite(
 		context.Background(), peerID, "echo", c.IPFSAPI, []byte("test\n"),
 	)
-}
-
-// AddPeerToPeerStore is used to add a TNS node to our peer store list
-func (c *Client) AddPeerToPeerStore(peerAddr string) (peer.ID, error) {
-	// generate a multiformat address to connect to
-	// /ip4/192.168.1.101/tcp/9999/ipfs/QmbtKadk9x6s56Wh226Wu84ZUc7xEe7AFgvm9bYUbrENDM
-	ipfsaddr, err := ma.NewMultiaddr(peerAddr)
-	if err != nil {
-		return "", err
-	}
-	// extract the ipfs peer id for the node
-	// QmbtKadk9x6s56Wh226Wu84ZUc7xEe7AFgvm9bYUbrENDM
-	pid, err := ipfsaddr.ValueForProtocol(ma.P_IPFS)
-	if err != nil {
-		return "", err
-	}
-	// decode the peerid
-	// <peer.ID Qm*brENDM>
-	peerid, err := peer.IDB58Decode(pid)
-	if err != nil {
-		return "", err
-	}
-	// generate an ipfs based peer address address that we connect to
-	// /ipfs/QmbtKadk9x6s56Wh226Wu84ZUc7xEe7AFgvm9bYUbrENDM
-	targetPeerAddr, err := ma.NewMultiaddr(
-		fmt.Sprintf("/ipfs/%s", pid),
-	)
-	if err != nil {
-		return "", err
-	}
-	// generate a basic multiformat ip address to connect to
-	// /ip4/192.168.1.101/tcp/9999
-	targetAddr := ipfsaddr.Decapsulate(targetPeerAddr)
-	// add a properly formatted libp2p address to connect to
-	c.Host.Peerstore().AddAddr(
-		peerid, targetAddr, pstore.PermanentAddrTTL,
-	)
-	return peerid, nil
-}
-
-// MakeHost is used to generate the libp2p connection for our TNS client
-func (c *Client) MakeHost(pk ci.PrivKey, opts *HostOpts) error {
-	host, err := makeHost(pk, opts, true)
-	if err != nil {
-		return err
-	}
-	c.Host = host
-	return nil
 }
