@@ -36,6 +36,7 @@ func TestClient(t *testing.T) {
 		ManagerPK:  pk,
 		Config:     cfg,
 		ListenAddr: daemonMaAddr,
+		Dev:        true,
 	})
 	if err != nil {
 		t.Fatal(err)

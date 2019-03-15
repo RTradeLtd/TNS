@@ -30,6 +30,7 @@ func TestNewDaemon(t *testing.T) {
 		ManagerPK:  pk,
 		Config:     cfg,
 		ListenAddr: listenAddr,
+		Dev:        true,
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -66,7 +66,7 @@ func NewDaemon(ctx context.Context, opts Options) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
-	dbm, err := database.New(opts.Config, database.Options{})
+	dbm, err := database.New(opts.Config, database.Options{SSLModeDisable: opts.Dev})
 	if err != nil {
 		return nil, err
 	}
