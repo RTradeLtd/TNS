@@ -57,3 +57,12 @@ time="2018-11-05T19:26:45+01:00" level=info msg="logger initialized"
 time="2018-11-05T19:26:45+01:00" level=info msg="logger initialized"
 time="2018-11-05T19:26:45+01:00" level=info msg="logger initialized"
 time="2018-11-05T19:26:45+01:00" level=info msg="logger initialized"
+time="2018-12-08T16:50:13-08:00" level=info msg="logger initialized"
+time="2018-12-08T16:50:13-08:00" level=info msg="generating echo stream" service=daemon
+time="2018-12-08T16:50:13-08:00" level=info msg="generating record request stream" service=daemon
+time="2018-12-08T16:50:13-08:00" level=info msg="generating zone request stream" service=daemon
+time="2018-12-08T16:50:26-08:00" level=info msg="logger initialized"
+time="2018-12-08T16:50:26-08:00" level=info msg="generating echo stream" service=daemon
+time="2018-12-08T16:50:26-08:00" level=info msg="generating record request stream" service=daemon
+time="2018-12-08T16:50:26-08:00" level=info msg="generating zone request stream" service=daemon
+time="2018-12-08T16:50:46-08:00" level=info msg="terminating daemon"

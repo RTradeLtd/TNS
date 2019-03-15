@@ -1,27 +1,5 @@
 package tns
 
-import (
-	log "github.com/sirupsen/logrus"
-
-	"github.com/RTradeLtd/database/models"
-	ci "github.com/libp2p/go-libp2p-crypto"
-	host "github.com/libp2p/go-libp2p-host"
-)
-
-const (
-	// CommandEcho is a test command used to test if we have successfully connected to a tns daemon
-	CommandEcho = "/echo/1.0.0"
-	// CommandRecordRequest is a command used to request a record from tns
-	CommandRecordRequest = "/recordRequest/1.0.0"
-	// CommandZoneRequest is a command used to request a zone from tns
-	CommandZoneRequest = "/zoneRequest/1.0.0"
-)
-
-var (
-	// Commands are all the commands that TNS supports via the libp2p interface
-	Commands = []string{CommandEcho, CommandRecordRequest, CommandZoneRequest}
-)
-
 // RecordRequest is a message sent when requeting a record form TNS, the response is simply Record
 type RecordRequest struct {
 	RecordName string `json:"record_name"`
@@ -33,6 +11,21 @@ type ZoneRequest struct {
 	UserName           string `json:"user_name"`
 	ZoneName           string `json:"zone_name"`
 	ZoneManagerKeyName string `json:"zone_manager_key_name"`
+}
+
+// ZoneCreation is used to create a tns zone
+type ZoneCreation struct {
+	Name           string `json:"name"`
+	ManagerKeyName string `json:"manager_key_name"`
+	ZoneKeyName    string `json:"zone_key_name"`
+}
+
+// RecordCreation is used to create a tns record
+type RecordCreation struct {
+	ZoneName      string                 `json:"zone_name"`
+	RecordName    string                 `json:"record_name"`
+	RecordKeyName string                 `json:"record_key_name"`
+	MetaData      map[string]interface{} `json:"meta_data"`
 }
 
 // Zone is a mapping of human readable names, mapped to a public key. In order to retrieve the latest
@@ -66,29 +59,4 @@ type HostOpts struct {
 	Port      string `json:"port"`
 	IPVersion string `json:"ip_version"`
 	Protocol  string `json:"protocol"`
-}
-
-// Manager is used to manipulate a zone on TNS and run a daemon
-type Manager struct {
-	PrivateKey        ci.PrivKey
-	ZonePrivateKey    ci.PrivKey
-	RecordPrivateKeys map[string]ci.PrivKey
-	Zone              *Zone
-	Host              host.Host
-	ZM                *models.ZoneManager
-	RM                *models.RecordManager
-	l                 *log.Logger
-	service           string
-}
-
-// Client is used to query a TNS daemon
-type Client struct {
-	PrivateKey ci.PrivKey
-	Host       host.Host
-	IPFSAPI    string
-}
-
-// Host is an interface used by a TNS client or daemon
-type Host interface {
-	MakeHost(pk ci.PrivKey, opts *HostOpts) error
 }

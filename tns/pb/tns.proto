@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package tns;
+
+message Command {
+    enum CMD {
+        RECORD_REQUEST = 0;
+        ZONE_REQUEST = 1;
+        ECHO = 2;
+    }
+    // this indicates the particular command being ran against the tns daemon
+    CMD cmd = 1;
+    // if not authoritative, we do a recursive lookup
+    // a recursive lookup is defined as talking to the P2P network at large
+    // for an answer. This would mean that for IPNS records, it would involve
+    // talking to the rest of the network for an answer.
+    // 
+    // if a request is authoritative, we will then retrieve the answer directly
+    // from the publisher. This means sending a query to the tns daemon running 
+    // on the node that published the request.
+    bool authoritative = 2;
+}
+
+message Protocol {
+    string named = 1;
+    string version = 2;
+}
