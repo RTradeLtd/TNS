@@ -18,14 +18,6 @@
   version = "v0.0.1"
 
 [[projects]]
-  digest = "1:b4f9afbe6fb859c838103844a50a0fc09d93d3fe53febe8869be6847f520ba0d"
-  name = "github.com/RTradeLtd/cmd"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "ca0a701114fc379024f5cf1673e2a60ec0537dc5"
-  version = "v2.0.1"
-
-[[projects]]
   digest = "1:9cbed820d2a459786e47ab2a67b3e3b04c58b006597fdf80d58ef4cfb9e81e7c"
   name = "github.com/RTradeLtd/config"
   packages = ["."]
@@ -901,7 +893,7 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:c52caf7bd44f92e54627a31b85baf06a68333a196b3d8d241480a774733dcf8b"
+  digest = "1:adccce69c151272d5053505aee552c6a1ac4e7bf6d18f0206ed7453187f6284d"
   name = "go.uber.org/zap"
   packages = [
     ".",
@@ -910,6 +902,7 @@
     "internal/color",
     "internal/exit",
     "zapcore",
+    "zaptest/observer",
   ]
   pruneopts = "UT"
   revision = "ff33455a0e382e8a81d14dd7c922020b6b5e7982"
@@ -1050,7 +1043,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/RTradeLtd/cmd",
     "github.com/RTradeLtd/config",
     "github.com/RTradeLtd/database",
     "github.com/RTradeLtd/database/models",
@@ -1058,14 +1050,19 @@
     "github.com/RTradeLtd/grpc/krab",
     "github.com/RTradeLtd/kaas",
     "github.com/RTradeLtd/rtfs",
+    "github.com/golang/protobuf/proto",
     "github.com/libp2p/go-libp2p",
     "github.com/libp2p/go-libp2p-crypto",
     "github.com/libp2p/go-libp2p-host",
     "github.com/libp2p/go-libp2p-net",
     "github.com/libp2p/go-libp2p-peer",
     "github.com/libp2p/go-libp2p-peerstore",
+    "github.com/libp2p/go-libp2p-protocol",
     "github.com/multiformats/go-multiaddr",
     "github.com/sirupsen/logrus",
+    "go.uber.org/zap",
+    "go.uber.org/zap/zapcore",
+    "go.uber.org/zap/zaptest/observer",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io/ioutil"
 
 	host "github.com/RTradeLtd/tns/host"
+	pb "github.com/RTradeLtd/tns/tns/pb"
 	ci "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -28,10 +31,9 @@ type ClientOptions struct {
 	ListenAddr string
 }
 
-// Client is used to query a TNS daemon
+// Client is used to talk to a TNS daemon node
 type Client struct {
-	H       *host.Host
-	IPFSAPI string
+	H *host.Host
 }
 
 // NewClient is used to instantiate a TNS Client
@@ -58,66 +60,41 @@ func NewClient(ctx context.Context, opts ClientOptions) (*Client, error) {
 	}, nil
 }
 
+// Query is used to send a query to the tns daemon running at peerid
+// TODO: use a response protobuf to contain a message
+func (c *Client) Query(ctx context.Context, peerid peer.ID, proto Command, cmd *pb.Command) (interface{}, error) {
+	requestBytes, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, err
+	}
+	// create a stream with the peer for the specified protocol
+	// this will allow us to send/receive data
+	stream, err := c.H.NewStream(ctx, peerid, proto.ID)
+	if err != nil {
+		return nil, err
+	}
+	// newline is used to signal the end of the request
+	if bytesWritten, err := stream.Write(append(requestBytes, '\n')); err != nil {
+		return nil, err
+	} else if bytesWritten <= 0 {
+		return nil, errors.New("unknown error ocurred while writing request")
+	}
+	// read response from peer
+	response, err := ioutil.ReadAll(stream)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: decode response into struct and return struct
+	fmt.Println(string(response))
+	return nil, nil
+}
+
+// ID is used to get the peerID of this client
+func (c *Client) ID() peer.ID {
+	return c.H.ID()
+}
+
 // Close is used to close our libp2p host
 func (c *Client) Close() error {
 	return c.H.Close()
-}
-
-// QueryTNS is used to query a peer for TNS name resolution
-func (c *Client) QueryTNS(peerID peer.ID, cmd string, requestArgs interface{}) (interface{}, error) {
-	switch cmd {
-	case "echo":
-		// send a basic echo test
-		return c.queryEcho(peerID)
-	case "zone-request":
-		// ensure the request argument is of type zone request
-		args := requestArgs.(ZoneRequest)
-		return c.ZoneRequest(peerID, &args)
-	case "record-request":
-		args := requestArgs.(RecordRequest)
-		return c.RecordRequest(peerID, &args)
-	default:
-		return nil, errors.New("unsupported cmd")
-	}
-}
-
-// ZoneRequest is a call used to request a zone from TNS
-func (c *Client) ZoneRequest(peerID peer.ID, req *ZoneRequest) (interface{}, error) {
-	if req == nil {
-		req = &ZoneRequest{
-			ZoneName:           defaultZoneName,
-			ZoneManagerKeyName: defaultZoneManagerKeyName,
-			UserName:           defaultZoneUserName,
-		}
-	}
-	marshaledData, err := json.Marshal(&req)
-	if err != nil {
-		return nil, err
-	}
-	return c.GenerateStreamAndWrite(
-		context.Background(), peerID, "zone-request", c.IPFSAPI, marshaledData,
-	)
-}
-
-// RecordRequest is a call used to request a record from TNS
-func (c *Client) RecordRequest(peerID peer.ID, req *RecordRequest) (interface{}, error) {
-	if req == nil {
-		req = &RecordRequest{
-			RecordName: defaultRecordName,
-			UserName:   defaultRecordUserName,
-		}
-	}
-	marshaledData, err := json.Marshal(&req)
-	if err != nil {
-		return nil, err
-	}
-	return c.GenerateStreamAndWrite(
-		context.Background(), peerID, "record-request", c.IPFSAPI, marshaledData,
-	)
-}
-
-func (c *Client) queryEcho(peerID peer.ID) (interface{}, error) {
-	return c.GenerateStreamAndWrite(
-		context.Background(), peerID, "echo", c.IPFSAPI, []byte("test\n"),
-	)
 }

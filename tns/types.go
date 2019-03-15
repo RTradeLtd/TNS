@@ -1,23 +1,5 @@
 package tns
 
-import (
-	ci "github.com/libp2p/go-libp2p-crypto"
-)
-
-const (
-	// CommandEcho is a test command used to test if we have successfully connected to a tns daemon
-	CommandEcho = "/echo/1.0.0"
-	// CommandRecordRequest is a command used to request a record from tns
-	CommandRecordRequest = "/recordRequest/1.0.0"
-	// CommandZoneRequest is a command used to request a zone from tns
-	CommandZoneRequest = "/zoneRequest/1.0.0"
-)
-
-var (
-	// Commands are all the commands that TNS supports via the libp2p interface
-	Commands = []string{CommandEcho, CommandRecordRequest, CommandZoneRequest}
-)
-
 // RecordRequest is a message sent when requeting a record form TNS, the response is simply Record
 type RecordRequest struct {
 	RecordName string `json:"record_name"`
@@ -77,9 +59,4 @@ type HostOpts struct {
 	Port      string `json:"port"`
 	IPVersion string `json:"ip_version"`
 	Protocol  string `json:"protocol"`
-}
-
-// TNS is an interface used by a TNS client or daemon
-type TNS interface {
-	MakeHost(pk ci.PrivKey, opts *HostOpts) error
 }

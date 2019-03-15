@@ -25,3 +25,8 @@ clean: stop-testenv
 .PHONY: vet
 vet:
 	go vet ./...
+
+# build proto buffs
+.PHONY: proto
+proto:
+	protoc -I tns tns/pb/tns.proto --go_out=tns

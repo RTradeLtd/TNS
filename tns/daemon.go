@@ -6,30 +6,30 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	"time"
 
+	"github.com/RTradeLtd/config"
+	"github.com/RTradeLtd/database"
 	"github.com/RTradeLtd/rtfs"
 
 	"github.com/RTradeLtd/database/models"
-	"github.com/RTradeLtd/gorm"
 	pb "github.com/RTradeLtd/grpc/krab"
 	"github.com/RTradeLtd/kaas"
 	host "github.com/RTradeLtd/tns/host"
+	"github.com/RTradeLtd/tns/log"
 	ci "github.com/libp2p/go-libp2p-crypto"
 	net "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // Options defines options for controlling our TNS Manager daemon
 type Options struct {
-	ManagerPK  ci.PrivKey `json:"manager_pk"`
-	LogFile    string     `json:"log_file"`
-	DB         *gorm.DB   `json:"db"`
-	IPFS       rtfs.Manager
-	KBC        *kaas.Client
+	ManagerPK  ci.PrivKey
+	Config     *config.TemporalConfig
 	ListenAddr string
+	Dev        bool
 }
 
 // Daemon is used to manage a local instance of a temporal name server
@@ -43,17 +43,33 @@ type Daemon struct {
 	h     *host.Host
 	zm    *models.ZoneManager
 	rm    *models.RecordManager
-	l     *log.Logger
+	l     *zap.SugaredLogger
 	kbc   *kaas.Client
 	ipfs  rtfs.Manager
 }
 
 // NewDaemon is used to create a new tns manager daemon
-func NewDaemon(ctx context.Context, opts *Options) (*Daemon, error) {
-	var (
-		logger = log.New()
-		err    error
+func NewDaemon(ctx context.Context, opts Options) (*Daemon, error) {
+	logger, err := log.NewLogger(opts.Config.LogFile, opts.Dev)
+	if err != nil {
+		return nil, err
+	}
+	kClient, err := kaas.NewClient(opts.Config.Services, false)
+	if err != nil {
+		return nil, err
+	}
+	ipfs, err := rtfs.NewManager(
+		opts.Config.IPFS.APIConnection.Host+":"+opts.Config.IPFS.APIConnection.Port,
+		"",
+		time.Hour*1,
 	)
+	if err != nil {
+		return nil, err
+	}
+	dbm, err := database.New(opts.Config, database.Options{})
+	if err != nil {
+		return nil, err
+	}
 	// extract a peer id for the zone manager
 	managerPKID, err := peer.IDFromPublicKey(opts.ManagerPK.GetPublic())
 	if err != nil {
@@ -62,37 +78,29 @@ func NewDaemon(ctx context.Context, opts *Options) (*Daemon, error) {
 	daemon := Daemon{
 		ID:    managerPKID,
 		pk:    opts.ManagerPK,
-		kbc:   opts.KBC,
-		ipfs:  opts.IPFS,
-		zm:    models.NewZoneManager(opts.DB),
-		rm:    models.NewRecordManager(opts.DB),
+		kbc:   kClient,
+		ipfs:  ipfs,
+		zm:    models.NewZoneManager(dbm.DB),
+		rm:    models.NewRecordManager(dbm.DB),
 		zones: make(map[string]string),
+		l:     logger,
 	}
 	lHost, err := host.NewHost(ctx, opts.ManagerPK, opts.ListenAddr)
 	if err != nil {
 		return nil, err
 	}
 	daemon.h = lHost
-	// open log file
-	logfile, err := os.OpenFile(opts.LogFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0640)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open log file: %s", err)
-	}
-
-	logger.Out = logfile
-	logger.Info("logger initialized")
-	daemon.l = logger
 	return &daemon, nil
 }
 
 // Run is used to run our TNS daemon, and setup the available stream handlers
 func (d *Daemon) Run(ctx context.Context) error {
-	d.LogInfo("generating echo stream")
+	d.l.Info("generating echo stream")
 	// our echo stream is a basic test used to determine whether or not a tns manager daemon is functioning properly
 	d.h.SetStreamHandler(
-		CommandEcho, func(s net.Stream) {
-			d.LogInfo("new stream detected")
-			if err := d.HandleQuery(s, "echo"); err != nil {
+		CommandEcho.ID, func(s net.Stream) {
+			d.l.Info("new stream detected")
+			if err := d.HandleQuery(s, CommandEcho); err != nil {
 				d.l.Warn(err.Error())
 				s.Reset()
 			} else {
@@ -100,12 +108,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 				s.Close()
 			}
 		})
-	d.LogInfo("generating record request stream")
+	d.l.Info("generating record request stream")
 	// our record request stream allows clients to request a record from the tns manager daemon
 	d.h.SetStreamHandler(
-		CommandRecordRequest, func(s net.Stream) {
-			d.LogInfo("new stream detected")
-			if err := d.HandleQuery(s, "record-request"); err != nil {
+		CommandRecordRequest.ID, func(s net.Stream) {
+			d.l.Info("new stream detected")
+			if err := d.HandleQuery(s, CommandRecordRequest); err != nil {
 				d.l.Warn(err.Error())
 				s.Reset()
 			} else {
@@ -113,12 +121,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 				s.Close()
 			}
 		})
-	d.LogInfo("generating zone request stream")
+	d.l.Info("generating zone request stream")
 	// our zone request stream allows clients to request a zone from the tns manager daemon
 	d.h.SetStreamHandler(
-		CommandZoneRequest, func(s net.Stream) {
-			d.LogInfo("new stream detected")
-			if err := d.HandleQuery(s, "zone-request"); err != nil {
+		CommandZoneRequest.ID, func(s net.Stream) {
+			d.l.Info("new stream detected")
+			if err := d.HandleQuery(s, CommandZoneRequest); err != nil {
 				d.l.Warn(err.Error())
 				s.Reset()
 			} else {
@@ -136,24 +144,22 @@ func (d *Daemon) Run(ctx context.Context) error {
 }
 
 // HandleQuery is used to handle a query sent to tns
-func (d *Daemon) HandleQuery(s net.Stream, cmd string) error {
+func (d *Daemon) HandleQuery(s net.Stream, cmd Command) error {
 	responseBuffer := bufio.NewReader(s)
 	switch cmd {
-	case "echo":
+	case CommandEcho:
 		// read the message being sent by the client
 		// it must end with a new line
 		bodyBytes, err := responseBuffer.ReadString('\n')
 		if err != nil {
 			return err
 		}
-		// format a response
-		msg := fmt.Sprintf("echo test...\nyou sent: %s\n", string(bodyBytes))
 		// send a response to th eclient
-		_, err = s.Write([]byte(msg))
+		_, err = s.Write([]byte(fmt.Sprintf("echo test...\nyou sent: %s\n", string(bodyBytes))))
 		return err
-	case "record-request":
+	case CommandRecordRequest:
 		return errors.New("not yet implemented")
-	case "zone-request":
+	case CommandZoneRequest:
 		// read the message being sent by the client
 		// it must end wit ha new line
 		bodyBytes, err := responseBuffer.ReadBytes('\n')
@@ -240,7 +246,7 @@ func (d *Daemon) CreateZone(req *ZoneCreation) (string, error) {
 		return "", err
 	}
 	if _, err := d.zm.NewZone(req.Name, d.ID.Pretty(), zoneID.Pretty(), hash); err != nil {
-		d.LogError(err, "failed to add zone to database")
+		d.l.Errorw("failed to add zone to database", "error", err)
 	}
 	d.zones[req.Name] = hash
 	return hash, nil
