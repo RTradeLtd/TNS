@@ -35,9 +35,6 @@ type Options struct {
 // Daemon is used to manage a local instance of a temporal name server
 // A single Daemon (aka, manager) private key can be reused across multiple zones
 type Daemon struct {
-	ID peer.ID
-	// pk is also our zone manager private key
-	pk ci.PrivKey
 	// zones is a map of zoneName -> latestIPLDHash
 	zones map[string]string
 	h     *host.Host
@@ -70,14 +67,7 @@ func NewDaemon(ctx context.Context, opts Options) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
-	// extract a peer id for the zone manager
-	managerPKID, err := peer.IDFromPublicKey(opts.ManagerPK.GetPublic())
-	if err != nil {
-		return nil, err
-	}
 	daemon := Daemon{
-		ID:    managerPKID,
-		pk:    opts.ManagerPK,
 		kbc:   kClient,
 		ipfs:  ipfs,
 		zm:    models.NewZoneManager(dbm.DB),
@@ -232,7 +222,7 @@ func (d *Daemon) CreateZone(req *ZoneCreation) (string, error) {
 	z := Zone{
 		PublicKey: zoneID.Pretty(),
 		Manager: &ZoneManager{
-			PublicKey: d.ID.Pretty(),
+			PublicKey: d.h.ID().Pretty(),
 		},
 		Name: req.Name,
 	}
@@ -245,7 +235,7 @@ func (d *Daemon) CreateZone(req *ZoneCreation) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if _, err := d.zm.NewZone(req.Name, d.ID.Pretty(), zoneID.Pretty(), hash); err != nil {
+	if _, err := d.zm.NewZone(req.Name, d.h.ID().Pretty(), zoneID.Pretty(), hash); err != nil {
 		d.l.Errorw("failed to add zone to database", "error", err)
 	}
 	d.zones[req.Name] = hash
