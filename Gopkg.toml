@@ -43,7 +43,7 @@
 
 [[constraint]]
   name = "github.com/RTradeLtd/grpc"
-  versoin = "~v2.0.0"
+  version = "~v2.0.0"
 
 [[constraint]]
   name = "github.com/RTradeLtd/rtfs"

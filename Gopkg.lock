@@ -358,14 +358,6 @@
   revision = "04140366298a54a039076d798123ffa108fff46c"
 
 [[projects]]
-  digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
-  name = "github.com/konsorten/go-windows-terminal-sequences"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
-  version = "v1.0.2"
-
-[[projects]]
   digest = "1:b18ffc558326ebaed3b4a175617f1e12ed4e3f53d6ebfe5ba372a3de16d22278"
   name = "github.com/lib/pq"
   packages = [
@@ -797,14 +789,6 @@
   version = "v0.8.1"
 
 [[projects]]
-  digest = "1:e4c72127d910a96daf869a44f3dd563b86dbe6931a172863a0e99c5ff04b59e4"
-  name = "github.com/sirupsen/logrus"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "dae0fa8d5b0c810a8ab733fbd5510c7cae84eca4"
-  version = "v1.4.0"
-
-[[projects]]
   branch = "master"
   digest = "1:0102dfa2f98777db8ff68c920bef1be3ff8504e90485b6cdd24d61b981b487b6"
   name = "github.com/whyrusleeping/go-logging"
@@ -910,7 +894,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2174d4995fdd5114c1c10c26e94c7914c17fa43a5cc269173d213f914afd92ee"
+  digest = "1:9de2181270a1c67f6876ee25f2d7985d9e0e2322ed17389250f73019a8be7925"
   name = "golang.org/x/crypto"
   packages = [
     "bcrypt",
@@ -920,7 +904,6 @@
     "ed25519/internal/edwards25519",
     "pbkdf2",
     "sha3",
-    "ssh/terminal",
   ]
   pruneopts = "UT"
   revision = "a1f597ede03a7bef967a422b5b3a5bd08805a01e"
@@ -1059,7 +1042,7 @@
     "github.com/libp2p/go-libp2p-peerstore",
     "github.com/libp2p/go-libp2p-protocol",
     "github.com/multiformats/go-multiaddr",
-    "github.com/sirupsen/logrus",
+    "github.com/multiformats/go-multiaddr-dns",
     "go.uber.org/zap",
     "go.uber.org/zap/zapcore",
     "go.uber.org/zap/zaptest/observer",

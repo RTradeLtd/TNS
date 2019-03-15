@@ -11,6 +11,8 @@ import (
 	pb "github.com/RTradeLtd/tns/tns/pb"
 	ci "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
+	ma "github.com/multiformats/go-multiaddr"
+	dnsaddr "github.com/multiformats/go-multiaddr-dns"
 )
 
 const (
@@ -99,7 +101,21 @@ func (c *Client) Close() error {
 	return c.H.Close()
 }
 
-// AddPeer is used to add a remote peer to our peerstore
+// AddPeer is used to add a remote peer to our peerstore when we know its multiaddr
 func (c *Client) AddPeer(peerAddress string) (peer.ID, error) {
 	return c.H.AddPeer(peerAddress)
+}
+
+// FindPeer is used to find out the multiaddr/peer to connect to based off a _dnsaddr txt record
+// we resolve the _dnsaddr record, and then connect to the first available address
+func (c *Client) FindPeer(ctx context.Context, domain string) (peer.ID, error) {
+	maAddr, err := ma.NewMultiaddr(domain)
+	if err != nil {
+		return "", err
+	}
+	addrs, err := dnsaddr.Resolve(ctx, maAddr)
+	if err != nil {
+		return "", err
+	}
+	return c.AddPeer(addrs[0].String())
 }
