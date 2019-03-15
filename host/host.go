@@ -35,7 +35,7 @@ func NewHost(ctx context.Context, identity ci.PrivKey, listenAddr string) (*Host
 	}, nil
 }
 
-// AddPeer is used to add a remote peer to our
+// AddPeer is used to add a remote peer to our peerstore
 func (h *Host) AddPeer(peerAddr string) (peer.ID, error) {
 	// create multiformat address
 	maAddr, err := ma.NewMultiaddr(peerAddr)

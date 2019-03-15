@@ -98,3 +98,8 @@ func (c *Client) ID() peer.ID {
 func (c *Client) Close() error {
 	return c.H.Close()
 }
+
+// AddPeer is used to add a remote peer to our peerstore
+func (c *Client) AddPeer(peerAddress string) (peer.ID, error) {
+	return c.H.AddPeer(peerAddress)
+}

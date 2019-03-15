@@ -252,6 +252,11 @@ func (d *Daemon) CreateZone(req *ZoneCreation) (string, error) {
 	return hash, nil
 }
 
+// PeerID is used to return the daemons peer ID
+func (d *Daemon) PeerID() peer.ID {
+	return d.h.ID()
+}
+
 // Close is used to terminate our daemon
 func (d *Daemon) Close() error {
 	return d.h.Close()
